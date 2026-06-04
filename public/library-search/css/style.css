@@ -86,7 +86,7 @@ body {
   font-weight: 400;
   background: var(--bg-page);
   color: var(--text-primary);
-  line-height: 1.8;
+  line-height: 1.9;
   letter-spacing: 0.04em;
   min-height: 100vh;
   text-wrap: pretty;
@@ -179,7 +179,7 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
 }
 .hero p {
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   color: var(--text-secondary);
   margin-top: var(--space-sm);
@@ -210,7 +210,7 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -231,20 +231,20 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   margin-bottom: var(--space-md);
 }
 .lib-selector label {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 .select {
   flex: 1;
-  padding: 12px var(--space-md);
+  padding: 14px var(--space-md);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-card);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   cursor: pointer;
   transition: border-color var(--transition-fast);
@@ -266,15 +266,15 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--text-heading, var(--text-primary));
   margin-bottom: var(--space-sm);
 }
 .search-helper-desc {
-  font-size: 15px;
+  font-size: 17px;
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 1.9;
   margin-bottom: var(--space-md);
 }
 .search-helper-desc strong {
@@ -289,9 +289,9 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   border: 1px solid rgba(184, 169, 201, 0.18);
 }
 .search-help-line {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-secondary);
-  line-height: 1.9;
+  line-height: 2.0;
   margin: 0;
 }
 .search-help-line strong {
@@ -302,7 +302,7 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   margin-top: 6px;
   padding-top: 8px;
   border-top: 1px dashed rgba(184, 169, 201, 0.25);
-  font-size: 13px;
+  font-size: 14.5px;
   font-style: normal;
   color: var(--text-muted);
 }
@@ -311,7 +311,7 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
 #lib-search-result.hidden { display: none; }
 .lib-search-summary { margin-bottom: var(--space-md); }
 .lib-search-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--text-heading, var(--text-primary));
   margin-bottom: var(--space-md);
@@ -339,16 +339,16 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   line-height: 1;
 }
 .stat-label {
-  font-size: 15px;
+  font-size: 16.5px;
   font-weight: 500;
   color: var(--text-primary);
   margin-top: 6px;
 }
 .stat-desc {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--text-secondary);
   margin-top: 4px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 .lib-search-empty {
   padding: 24px;
@@ -358,7 +358,7 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   border: 1px solid var(--border-color);
 }
 .lib-search-empty p {
-  font-size: 15px;
+  font-size: 16.5px;
   color: var(--text-secondary);
   margin-bottom: 8px;
 }
@@ -384,8 +384,8 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   border-color: rgba(212, 165, 165, 0.5);
 }
 .lib-book-cover {
-  width: 60px;
-  height: 84px;
+  width: 68px;
+  height: 95px;
   object-fit: cover;
   border-radius: 6px;
   flex-shrink: 0;
@@ -398,8 +398,8 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   gap: 4px;
 }
 .lib-book-title {
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.6;
   color: var(--text-primary);
   font-weight: 500;
   display: -webkit-box;
@@ -408,15 +408,15 @@ hello-ruru-header { display: block; margin-bottom: var(--space-lg); }
   overflow: hidden;
 }
 .lib-book-link {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--text-muted);
   margin-top: auto;
 }
 .badge {
   display: inline-block;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   align-self: flex-start;
 }
@@ -434,13 +434,13 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   border: 1px solid var(--border-color);
 }
 .cross-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 500;
   margin-bottom: 8px;
   color: var(--text-heading, var(--text-primary));
 }
 .cross-desc {
-  font-size: 15px;
+  font-size: 17px;
   color: var(--text-secondary);
   margin-bottom: 12px;
 }
@@ -448,17 +448,17 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 .cross-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 16.5px;
 }
 .cross-table th, .cross-table td {
-  padding: 12px;
+  padding: 14px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
 }
 .cross-table th {
   font-weight: 500;
   color: var(--text-secondary);
-  font-size: 13.5px;
+  font-size: 15px;
 }
 .cross-table td a {
   color: var(--text-primary);
@@ -466,10 +466,10 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 }
 .cross-table td a:hover { color: #c9929a; }
 .cross-note {
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--text-muted);
   margin-top: 12px;
-  line-height: 1.7;
+  line-height: 1.8;
 }
 
 @media (max-width: 600px) {
@@ -478,13 +478,13 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 }
 .input {
   flex: 1;
-  padding: 12px var(--space-md);
+  padding: 14px var(--space-md);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-card);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
 }
 .input:focus {
@@ -493,10 +493,10 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 }
 .input::placeholder { color: var(--text-hint); }
 .form-note {
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--text-muted);
   margin-top: var(--space-xs);
-  line-height: 1.8;
+  line-height: 1.9;
 }
 
 /* ── 按鈕 ── */
@@ -504,13 +504,13 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 12px var(--space-lg);
+  padding: 14px var(--space-lg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-card);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 400;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -529,7 +529,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   background: var(--color-sage-dark);
   border-color: var(--color-sage-dark);
 }
-.btn-sm { padding: 8px var(--space-md); font-size: 14px; }
+.btn-sm { padding: 9px var(--space-md); font-size: 16px; }
 .btn-outline { background: transparent; }
 
 /* ── 排序列 ── */
@@ -540,7 +540,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   margin-bottom: var(--space-md);
 }
 .result-count {
-  font-size: 14.5px;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 
@@ -552,7 +552,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   gap: var(--space-sm);
   padding: var(--space-2xl) 0;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 .spinner {
   width: 20px; height: 20px;
@@ -587,7 +587,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 }
 .free-hit-badge {
   display: inline-block;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
   background: var(--color-gold);
@@ -609,7 +609,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   margin-bottom: var(--space-sm);
 }
 .book-card .book-title {
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--text-primary);
   line-height: 1.6;
@@ -620,15 +620,15 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   text-decoration: none;
 }
 .book-date {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   margin-top: var(--space-xs);
 }
 .book-rank {
   display: inline-block;
-  width: 22px; height: 22px;
-  line-height: 22px;
-  font-size: 11px;
+  width: 26px; height: 26px;
+  line-height: 26px;
+  font-size: 13px;
   font-weight: 600;
   color: #fff;
   background: var(--color-sage);
@@ -653,15 +653,15 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 }
 .lib-group-name {
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-ink);
 }
 .lib-group-count {
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--text-secondary);
   background: var(--color-sage-bg);
-  padding: 3px 11px;
+  padding: 4px 12px;
   border-radius: var(--radius-sm);
 }
 .lib-dot {
@@ -687,14 +687,14 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   text-decoration: none;
 }
 .book-list-item .book-cover-sm {
-  width: 40px; height: 54px;
+  width: 48px; height: 64px;
   object-fit: cover;
   border-radius: 4px;
   background: var(--bg-page);
   flex-shrink: 0;
 }
 .book-list-item .book-title {
-  font-size: 15.5px;
+  font-size: 17px;
   font-weight: 400;
   color: var(--text-primary);
   text-decoration: none;
@@ -705,7 +705,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   text-align: center;
   padding: var(--space-2xl) 0;
   color: var(--text-secondary);
-  font-size: 15.5px;
+  font-size: 17px;
 }
 
 /* ── 延伸閱讀 ── */
@@ -718,7 +718,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 }
 .further-reading-title {
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-ink);
   margin-bottom: var(--space-md);
@@ -746,7 +746,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   flex-shrink: 0;
 }
 .further-reading-list a {
-  font-size: 15.5px;
+  font-size: 17px;
   color: var(--text-secondary);
   text-decoration: none;
   transition: color var(--transition-fast);
@@ -761,9 +761,9 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 .credits-section { margin-top: var(--space-xl); }
 .credits {
   text-align: center;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--text-muted);
-  line-height: 1.9;
+  line-height: 2.0;
 }
 .credits a { color: var(--text-muted); }
 .divider-gold {
@@ -785,7 +785,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
-  font-size: 14.5px;
+  font-size: 16px;
   color: var(--text-primary);
   z-index: 400;
   white-space: nowrap;
@@ -795,7 +795,7 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 .site-footer {
   text-align: center;
   padding: var(--space-lg) var(--space-md);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   position: relative;
 }
@@ -810,8 +810,8 @@ html.dark .badge-buy { background: rgba(184, 169, 201, 0.25); color: #c2b4d0; }
 
 /* ── 響應式 ── */
 @media (max-width: 767px) {
-  .hero h1 { font-size: 26px; }
-  .book-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--space-sm); }
+  .hero h1 { font-size: 28px; }
+  .book-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: var(--space-sm); }
   .search-row { flex-direction: column; }
   .tab-nav { overflow-x: auto; }
   .lib-selector { flex-direction: column; align-items: stretch; gap: var(--space-sm); }
