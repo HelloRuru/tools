@@ -27,6 +27,7 @@
       "path": "/bg-remove",
       "icon": "scissors",
       "ready": false,
+      "hidden": true,
       "color": "lavender",
       "external": false
     },

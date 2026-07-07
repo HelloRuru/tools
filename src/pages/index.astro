@@ -40,10 +40,12 @@ const toolCategoryMap: Record<string, string> = {
 };
 
 // 處理工具資料
-const tools = toolsConfig.tools.map(tool => ({
-  ...tool,
-  category: toolCategoryMap[tool.id] || 'text',
-}));
+const tools = toolsConfig.tools
+  .filter(tool => !tool.hidden)  // hidden: true = 先收起來（頁面還沒做的工具）
+  .map(tool => ({
+    ...tool,
+    category: toolCategoryMap[tool.id] || 'text',
+  }));
 
 const readyTools = tools.filter(t => t.ready);
 const totalCount = tools.length;
