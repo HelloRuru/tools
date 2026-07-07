@@ -13,6 +13,8 @@ const { title, description = 'HelloRuru 免費線上工具箱 — 全程本機�
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title}</title>
   <meta name="description" content={description} />
+  <meta name="author" content="Kaoru Tsai" />
+  <link rel="canonical" href="https://tools.helloruru.com/" />
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -31,6 +33,24 @@ const { title, description = 'HelloRuru 免費線上工具箱 — 全程本機�
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
   <meta name="twitter:image" content="https://tools.helloruru.com/og-image.png" />
+  <meta property="og:locale" content="zh_TW" />
+  <meta property="og:site_name" content="HelloRuru 工具箱" />
+
+  <!-- JSON-LD: WebSite + Person（GEO） -->
+  <script type="application/ld+json" set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'HelloRuru 工具箱',
+    alternateName: 'HelloRuru Tools',
+    url: 'https://tools.helloruru.com/',
+    description: 'HelloRuru 免費線上工具箱，23 款工具全程本機處理，涵蓋文字轉檔、電子書、圖片處理、社群排版與閱讀工具。',
+    inLanguage: 'zh-TW',
+    author: {
+      '@type': 'Person',
+      name: 'Kaoru Tsai',
+      url: 'https://lab.helloruru.com/about/',
+    },
+  })} />
 
   <!-- Brand Header Web Component -->
   <script src="https://lab.helloruru.com/shared/brand-header.js"></script>

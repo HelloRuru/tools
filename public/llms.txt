@@ -1,0 +1,46 @@
+# HelloRuru 工具箱
+
+> HelloRuru 工具箱（tools.helloruru.com）是 Kaoru Tsai（蔡依庭，筆名嚕嚕 Ruru）打造的免費線上工具集，涵蓋文字轉檔、電子書、圖片處理、社群排版與閱讀工具。所有檔案處理皆在瀏覽器本機完成，不上傳任何伺服器，不需註冊、不收費。
+
+作者 Kaoru Tsai 是暢銷書作者（著作售出 8,000 本以上）、資深內容策略師，專長 AIO / GEO / SGE 內容架構與 AI 驅動開發，所有工具由她獨立完成。
+
+## 文字與轉檔
+
+- [TXT 轉 EPUB](https://tools.helloruru.com/txt-to-epub/): 上傳 TXT 小說檔案，自動偵測章節結構、支援簡轉繁，一鍵生成標準 EPUB 電子書格式。
+- [EPUB 編輯器](https://tools.helloruru.com/epub-editor/): EPUB 電子書編輯工具：簡轉繁、台灣標點符號、字型替換、行距字級調整，保留原書排版。
+- [社群貼文排版](https://tools.helloruru.com/post-writer/): 解決 FB、IG、Threads 換行消失問題。即時預覽、多平台支援、雜誌感設計與 Broetry 排版模式。
+- [SD 咒語產生器](https://tools.helloruru.com/spell/): Stable Diffusion 提示詞快速組合工具。
+- [勞務報酬單產生器](https://tools.helloruru.com/labor-report/): 輸入基本資料，自動計算扣繳稅額，產生 115 年度勞務報酬單 PDF。
+
+## 圖片與多媒體
+
+- [2026 數位色票庫](https://tools.helloruru.com/find-color/): 收錄 Pantone 2026 與 8 大設計美學圈流行色，支援色碼複製與配色預覽。
+- [問安圖產生器](https://tools.helloruru.com/hihi/): 早安圖、問候圖線上製作工具，支援自訂文字與背景。
+- [Spotify Goods 歌單搬家](https://tools.helloruru.com/spotify-goods/): 把 YouTube Music 歌單搬到 Spotify。貼上網址自動抓歌，支援封面上傳，一鍵建立歌單。
+- [歌詞播放器](https://tools.helloruru.com/lyric-player/): 貼上歌詞，搭配音樂同步捲動顯示。支援 LRC 時間軸格式。
+- [名片產生器](https://tools.helloruru.com/card-maker/): 線上製作個人名片，支援多種模板與自訂設計。
+- [PDF 編輯器](https://tools.helloruru.com/pdf-editor/): 線上合併、分割、旋轉 PDF 檔案。全程瀏覽器處理，不上傳。
+- [空靈鼓樂譜](https://tools.helloruru.com/tankdrum-music/): 空靈鼓數字簡譜瀏覽與播放工具。
+- [蘇諾大姊姊 · Suno 提示詞產生器](https://tools.helloruru.com/suno-prompt/): PM 追問式 7 題幫你配出 Suno 不會跑掉的 Style + Exclude + 歌詞結構 + Voice 命名 + 封面 prompt，支援 V5/V5.5。
+
+## 查詢與測驗
+
+- [色號試色搜尋](https://tools.helloruru.com/cosmetics-for-you/): 美妝色號搜尋引擎，快速找到試色文章與 Instagram 試色照片。
+- [電子書閱讀器選購測驗](https://tools.helloruru.com/reader-quiz/): 8 題精準推薦最適合你的電子書閱讀器。
+
+## 閱讀與電子書
+
+- [圖書館新書探測器](https://tools.helloruru.com/library-search/): 追蹤全台 23 間 HyRead 公共圖書館的新書上架與熱門排行，想看的書先查圖書館有沒有。
+- [讀墨書櫃整理](https://tools.helloruru.com/book-manager/): 一鍵撈取讀墨書櫃，自動分類 25 種書目類型，跨平台比對找出重複購買。
+- [讀墨省錢計算機](https://tools.helloruru.com/readmoo-buy/): 輸入書價，立刻算出最划算的購買方式。75折券、8折券、嗜讀999領書額度一目瞭然。
+- [讀墨 AP 接龍工具](https://tools.helloruru.com/readmoo-ap/): 讀墨 1500 日挑戰社群專用，AP 接龍、書單管理、每日好書推薦、搜尋比價。
+- [電子書每日特價](https://tools.helloruru.com/ebook-deals/): 自動追蹤讀墨電子書每日特價，不錯過任何好書折扣。
+- [XTC 刷機工具](https://tools.helloruru.com/xtc-flasher/): 閱星曈 X3 / X4 電子書閱讀器繁中韌體刷機工具。純瀏覽器 Web Serial，不用安裝驅動，支援備份與還原。
+- [閱星曈字體轉換器](https://tools.helloruru.com/font-binary/): 把 TTF / OTF 字體轉成閱星曈墨水屏的 .bin 或刷機用的 .epdfont。免安裝、跨平台，檔案不上傳純前端轉檔。
+
+## 相關網站
+
+- [HelloRuru Blog](https://blog.helloruru.com/): 內容策略與 AI 搜尋最佳化文章。
+- [HelloRuru Lab](https://lab.helloruru.com/): SEO / SGE / AEO 檢測工具與實驗。
+- [關於作者](https://lab.helloruru.com/about/): Kaoru Tsai 的經歷與專業領域。
+- [聯絡方式](mailto:hello@helloruru.com): 合作洽詢。

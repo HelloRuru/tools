@@ -1,4 +1,37 @@
+# tools.helloruru.com — 歡迎搜尋引擎與 AI 爬蟲
+
 User-agent: *
+Allow: /
+
+# 明確放行 AI 搜尋引擎爬蟲（GEO）
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Applebot-Extended
 Allow: /
 
 Sitemap: https://tools.helloruru.com/sitemap.xml
