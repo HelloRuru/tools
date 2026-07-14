@@ -57,7 +57,7 @@
     onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/xlsx@0.20.3/dist/xlsx.full.min.js'"></script>
 
   <!-- Styles -->
-  <link rel="stylesheet" href="css/style.min.css?v=20260502l">
+  <link rel="stylesheet" href="css/style.min.css?v=20260604v">
 
   <!-- 每日好書 tab 樣式 -->
   <style>
@@ -475,6 +475,14 @@
       <i data-lucide="gift"></i>
       <span>AP 紀錄</span>
     </button>
+    <button class="tab-btn" data-tab="coupon" role="tab" aria-selected="false">
+      <i data-lucide="ticket"></i>
+      <span>優惠交換</span>
+    </button>
+    <button class="tab-btn" data-tab="recommend" role="tab" aria-selected="false">
+      <i data-lucide="heart"></i>
+      <span>推薦書單</span>
+    </button>
     <button class="tab-btn" data-tab="changelog" role="tab" aria-selected="false">
       <i data-lucide="file-text"></i>
       <span>修改紀錄</span>
@@ -501,7 +509,7 @@
 
         <!-- 快速操作 -->
         <div class="quick-actions">
-          <a href="https://reurl.cc/DbRK35" target="_blank" rel="noopener" class="quick-action-card">
+          <a href="javascript:void(0);" class="quick-action-card" id="qa-add-newcomer">
             <i data-lucide="user-plus"></i>
             <div>
               <strong>我是新人，想加入 AP</strong>
@@ -1041,7 +1049,236 @@
       </div>
     </section>
 
-    <!-- ============ Tab 7: 修改紀錄 ============ -->
+    <!-- ============ Tab 7: 優惠交換 ============ -->
+    <section id="tab-coupon" class="tab-panel" role="tabpanel">
+      <div class="coupon-container">
+
+        <!-- 我的優惠紀錄 -->
+        <div class="coupon-section coupon-my-records" id="coupon-my-records-section" style="display:none;">
+          <div class="section-header">
+            <h2>我的優惠紀錄 <span id="coupon-my-count" class="coupon-count">0</span></h2>
+            <div class="coupon-my-stats" id="coupon-my-stats"></div>
+          </div>
+          <div class="coupon-my-tabs">
+            <button class="coupon-my-tab-btn active" data-mytab="active">進行中 <span id="coupon-my-active-count">0</span></button>
+            <button class="coupon-my-tab-btn" data-mytab="used">已被使用 <span id="coupon-my-used-count">0</span></button>
+            <button class="coupon-my-tab-btn" data-mytab="expired">已過期 <span id="coupon-my-expired-count">0</span></button>
+          </div>
+          <div id="coupon-my-list" class="coupon-my-list"></div>
+          <div id="coupon-my-empty" class="coupon-my-empty" style="display:none;">
+            <p>這個分類沒有券</p>
+          </div>
+        </div>
+
+        <!-- 暱稱 + 提供券表單 -->
+        <div class="coupon-section">
+          <h2>分享一張券</h2>
+          <p class="section-desc">把你手上用不到的讀墨折價券 PO 出來，給別人用對方結帳請走你的 AP 連結。一張券一次性，回報後自動下架。</p>
+
+          <form id="coupon-form" class="coupon-form" autocomplete="off">
+            <div class="coupon-form-row">
+              <label for="coupon-nick-input">你的暱稱<span class="required">*</span></label>
+              <input type="text" id="coupon-nick-input" class="input-field" placeholder="例如：嚕嚕在看書！" required>
+            </div>
+
+            <div class="coupon-form-grid">
+              <div class="coupon-form-row">
+                <label for="coupon-code">券碼<span class="required">*</span></label>
+                <input type="text" id="coupon-code" class="input-field" placeholder="ABC1234" required>
+              </div>
+              <div class="coupon-form-row">
+                <label for="coupon-discount">折扣內容<span class="required">*</span></label>
+                <div class="coupon-quick-picks" id="coupon-discount-picks">
+                  <button type="button" class="coupon-pick-btn" data-pick="95折">95折</button>
+                  <button type="button" class="coupon-pick-btn" data-pick="9折">9折</button>
+                  <button type="button" class="coupon-pick-btn" data-pick="8折">8折</button>
+                  <button type="button" class="coupon-pick-btn" data-pick="不限金額折50">不限金額折50</button>
+                  <button type="button" class="coupon-pick-btn" data-pick="3本75折">3本75折</button>
+                </div>
+                <input type="text" id="coupon-discount" class="input-field" placeholder="或自己寫：例如「滿 500 折 100」" required>
+                <p class="hint-text">點上面快選、或自己寫</p>
+              </div>
+              <div class="coupon-form-row">
+                <label for="coupon-scope">適用範圍<span class="required">*</span></label>
+                <input type="text" id="coupon-scope" class="input-field" placeholder="例：全站、特定出版社、文學類" required>
+                <p class="hint-text">這張券能用在哪</p>
+              </div>
+              <div class="coupon-form-row">
+                <label for="coupon-expire">有效期限<span class="required">*</span></label>
+                <input type="date" id="coupon-expire" class="input-field" required>
+              </div>
+            </div>
+
+            <div class="coupon-form-row">
+              <label for="coupon-ap-link">你的 AP 連結<span class="required">*</span></label>
+              <div class="coupon-ap-link-row">
+                <input type="url" id="coupon-ap-link" class="input-field" placeholder="https://moo.im/a/xxxx" required>
+                <button type="button" id="coupon-use-my-ap" class="btn-secondary btn-sm">
+                  <i data-lucide="user-check"></i> 使用我的
+                </button>
+              </div>
+              <p class="hint-text">使用者結帳請走這條連結，你才能拿到 AP 回饋。點「使用我的」會從 AP 名冊查你的連結</p>
+              <p class="hint-text" id="coupon-ap-hint" style="display:none;"></p>
+            </div>
+
+            <div class="coupon-form-row">
+              <label for="coupon-note">備註</label>
+              <textarea id="coupon-note" class="input-field" rows="2" placeholder="例如：可疊加會員折、僅限文學類、最低消費 500 元"></textarea>
+            </div>
+
+            <div class="coupon-form-row">
+              <label for="coupon-contact">聯絡方式（選填）</label>
+              <div class="coupon-contact-row">
+                <input type="text" id="coupon-contact" class="input-field" placeholder="LINE / FB / IG（讓有問題的人找你）">
+                <button type="button" id="coupon-use-readmoo-line" class="btn-secondary btn-sm">
+                  <i data-lucide="message-circle"></i> 讀墨社群
+                </button>
+              </div>
+              <p class="hint-text">想偷懶就點「讀墨社群」自動帶入官方 LINE 社群連結</p>
+            </div>
+
+            <button type="submit" id="coupon-submit-btn" class="btn-primary">
+              <i data-lucide="send"></i> PO 出去
+            </button>
+          </form>
+        </div>
+
+        <!-- 券清單 -->
+        <div class="coupon-section">
+          <div class="section-header">
+            <h2>目前有的券 <span id="coupon-count" class="coupon-count">0</span></h2>
+            <div class="header-actions">
+              <select id="coupon-filter" class="input-field">
+                <option value="available">全部進行中</option>
+                <option value="mine">我提供的</option>
+              </select>
+              <button id="coupon-refresh-btn" class="btn-secondary btn-sm" title="重新整理">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="coupon-offline-banner" class="coupon-offline-banner" style="display:none;"></div>
+
+          <div id="coupon-list" class="coupon-list"></div>
+
+          <div id="coupon-empty" class="coupon-empty" style="display:none;">
+            <i data-lucide="inbox"></i>
+            <p>目前沒有可用的券。要不要 PO 一張你的？</p>
+          </div>
+        </div>
+
+        <!-- 規則說明 -->
+        <div class="coupon-section coupon-rules">
+          <h3>怎麼運作</h3>
+          <ol class="coupon-rules-list">
+            <li>有券的人 PO 上來，附上自己的 AP 連結</li>
+            <li>想用券的人，<strong>用對方 AP 連結結帳</strong>，輸入券碼</li>
+            <li>結帳完成後，<strong>回到這裡點「我用了」</strong>，回報訂單末兩碼（例：*59）</li>
+            <li>券會自動下架，不會有人來搶第二次</li>
+          </ol>
+          <p class="coupon-disclaimer">
+            <i data-lucide="info"></i>
+            本工具只是撮合場，<strong>不負責調解任何糾紛</strong>。沒有回報的人會被記錄回報率，影響後續信用。
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ Tab 8: 推薦書單 ============ -->
+    <section id="tab-recommend" class="tab-panel" role="tabpanel">
+      <div class="recommend-container">
+
+        <!-- 推薦表單 -->
+        <div class="recommend-section">
+          <h2>推薦一本讀墨的書</h2>
+          <p class="section-desc">把你愛的書貼到這裡。如果同一本書多人推薦，會合併到同一張卡，推薦人愈多愈優先。</p>
+
+          <form id="recommend-form" class="recommend-form" autocomplete="off">
+            <div class="coupon-form-row">
+              <label for="recommend-nick-input">你的暱稱<span class="required">*</span></label>
+              <input type="text" id="recommend-nick-input" class="input-field" placeholder="例如：嚕嚕在看書！" required>
+            </div>
+
+            <div class="coupon-form-row">
+              <label for="recommend-url">讀墨連結或書名<span class="required">*</span></label>
+              <div class="recommend-url-row">
+                <input type="text" id="recommend-url" class="input-field" placeholder="貼網址、或打書名搜尋" required autocomplete="off">
+                <button type="button" id="recommend-search-btn" class="btn-secondary btn-sm" title="搜讀墨">
+                  <i data-lucide="search"></i> 搜尋
+                </button>
+              </div>
+              <p class="hint-text">貼連結（readmoo.com / share.readmoo / moo.im / 純 ID）或直接打書名按搜尋</p>
+              <div id="recommend-search-results" class="recommend-search-results" style="display:none;"></div>
+            </div>
+
+            <div class="coupon-form-row">
+              <label for="recommend-text">推薦理由<span class="required">*</span></label>
+              <textarea id="recommend-text" class="input-field" rows="5" placeholder="為什麼喜歡這本書？可以按 Enter 分段寫" required></textarea>
+            </div>
+
+            <div class="coupon-form-row">
+              <label for="recommend-tags">個人標籤</label>
+              <input type="text" id="recommend-tags" class="input-field" placeholder="例：燒腦、金句多、治癒（用空白或逗號分隔）">
+              <p class="hint-text">自己貼幾個標籤，工具會自動合併同名標籤</p>
+            </div>
+
+            <div class="coupon-form-grid">
+              <div class="coupon-form-row">
+                <label for="recommend-title-fallback">書名（抓不到時填）</label>
+                <input type="text" id="recommend-title-fallback" class="input-field" placeholder="留空 = 工具自動抓">
+              </div>
+              <div class="coupon-form-row">
+                <label for="recommend-author-fallback">作者（抓不到時填）</label>
+                <input type="text" id="recommend-author-fallback" class="input-field" placeholder="留空 = 工具自動抓">
+              </div>
+            </div>
+
+            <button type="submit" id="recommend-submit-btn" class="btn-primary">
+              <i data-lucide="send"></i> PO 推薦
+            </button>
+          </form>
+        </div>
+
+        <!-- 熱門標籤 -->
+        <div class="recommend-section">
+          <div class="section-header">
+            <h2>熱門標籤</h2>
+          </div>
+          <div id="recommend-tag-cloud" class="recommend-tag-cloud"></div>
+        </div>
+
+        <!-- 書單列表 -->
+        <div class="recommend-section">
+          <div class="section-header">
+            <h2>大家推薦的書 <span id="recommend-count" class="coupon-count">0</span></h2>
+            <div class="header-actions">
+              <select id="recommend-sort" class="input-field">
+                <option value="likes">愛心多 ▼</option>
+                <option value="recommenders">推薦人數多 ▼</option>
+                <option value="newest">最新推薦 ▼</option>
+              </select>
+              <button id="recommend-refresh-btn" class="btn-secondary btn-sm" title="重新整理">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="recommend-offline-banner" class="coupon-offline-banner" style="display:none;"></div>
+
+          <div id="recommend-list" class="recommend-list"></div>
+
+          <div id="recommend-empty" class="coupon-empty" style="display:none;">
+            <i data-lucide="book"></i>
+            <p>還沒有人推薦書。要不要 PO 第一本？</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ Tab 9: 修改紀錄 ============ -->
     <section id="tab-changelog" class="tab-panel" role="tabpanel">
       <div class="changelog-container">
         <div class="section-header">
@@ -1259,6 +1496,116 @@
   <!-- Toast -->
   <div id="toast" class="toast" style="display:none;"></div>
 
+  <!-- 優惠交換 編輯券 Modal -->
+  <div id="coupon-edit-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card coupon-edit-modal-card">
+      <button id="coupon-edit-close-btn" class="modal-close" aria-label="關閉">
+        <i data-lucide="x"></i>
+      </button>
+      <h3 class="coupon-edit-modal-title">修改我的券</h3>
+      <p class="modal-desc">改完按儲存就會立刻更新</p>
+
+      <div class="coupon-edit-modal-body">
+        <input type="hidden" id="edit-coupon-id">
+        <div class="coupon-form-row">
+          <label for="edit-coupon-code">券碼<span class="required">*</span></label>
+          <input type="text" id="edit-coupon-code" class="input-field" required>
+        </div>
+        <div class="coupon-form-grid">
+          <div class="coupon-form-row">
+            <label for="edit-coupon-discount">折扣<span class="required">*</span></label>
+            <input type="text" id="edit-coupon-discount" class="input-field" placeholder="例：95折" required>
+          </div>
+          <div class="coupon-form-row">
+            <label for="edit-coupon-scope">適用範圍<span class="required">*</span></label>
+            <input type="text" id="edit-coupon-scope" class="input-field" required>
+          </div>
+          <div class="coupon-form-row">
+            <label for="edit-coupon-expire">有效期限<span class="required">*</span></label>
+            <input type="date" id="edit-coupon-expire" class="input-field" required>
+          </div>
+          <div class="coupon-form-row">
+            <label for="edit-coupon-ap-link">AP 連結<span class="required">*</span></label>
+            <input type="url" id="edit-coupon-ap-link" class="input-field" required>
+          </div>
+        </div>
+        <div class="coupon-form-row">
+          <label for="edit-coupon-note">備註</label>
+          <textarea id="edit-coupon-note" class="input-field" rows="2"></textarea>
+        </div>
+        <div class="coupon-form-row">
+          <label for="edit-coupon-contact">聯絡方式</label>
+          <input type="text" id="edit-coupon-contact" class="input-field">
+        </div>
+      </div>
+
+      <div class="coupon-edit-modal-foot">
+        <button id="coupon-edit-cancel-btn" class="btn-secondary">取消</button>
+        <button id="coupon-edit-save-btn" class="btn-primary">
+          <i data-lucide="save"></i> 儲存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修改推薦心得 Modal -->
+  <div id="recommend-edit-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card recommend-edit-modal-card">
+      <button id="recommend-edit-close-btn" class="modal-close" aria-label="關閉">
+        <i data-lucide="x"></i>
+      </button>
+      <h3 class="newcomer-modal-title">修改你的推薦理由</h3>
+      <p class="modal-desc" id="recommend-edit-book-title">改完按儲存就更新</p>
+
+      <div class="newcomer-modal-body">
+        <input type="hidden" id="recommend-edit-id">
+        <div class="coupon-form-row">
+          <label for="recommend-edit-text">推薦理由<span class="required">*</span></label>
+          <textarea id="recommend-edit-text" class="input-field" rows="8" placeholder="按 Enter 分段寫" required></textarea>
+          <p class="hint-text">可以按 Enter 分段</p>
+        </div>
+      </div>
+
+      <div class="coupon-edit-modal-foot">
+        <button id="recommend-edit-cancel-btn" class="btn-secondary">取消</button>
+        <button id="recommend-edit-save-btn" class="btn-primary">
+          <i data-lucide="save"></i> 儲存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新人加入 AP Modal -->
+  <div id="newcomer-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card newcomer-modal-card">
+      <button id="newcomer-close-btn" class="modal-close" aria-label="關閉">
+        <i data-lucide="x"></i>
+      </button>
+      <h3 class="newcomer-modal-title">登記成為 AP 新成員</h3>
+      <p class="modal-desc">填一下你的暱稱跟讀墨 AP 連結就會寫進名冊。之後社群朋友買書都可以選你結帳、你就會收到 AP 回饋。</p>
+
+      <div class="newcomer-modal-body">
+        <div class="coupon-form-row">
+          <label for="newcomer-name">你的暱稱<span class="required">*</span></label>
+          <input type="text" id="newcomer-name" class="input-field" placeholder="例如：嚕嚕在看書！" required>
+          <p class="hint-text">建議用讀墨上顯示的名字，方便朋友認出你</p>
+        </div>
+        <div class="coupon-form-row">
+          <label for="newcomer-link">你的 AP 連結<span class="required">*</span></label>
+          <input type="url" id="newcomer-link" class="input-field" placeholder="https://moo.im/a/xxxxxx" required>
+          <p class="hint-text">讀墨 → 我的會員 → 推薦好友 → 複製專屬連結</p>
+        </div>
+      </div>
+
+      <div class="coupon-edit-modal-foot">
+        <button id="newcomer-cancel-btn" class="btn-secondary">取消</button>
+        <button id="newcomer-save-btn" class="btn-primary">
+          <i data-lucide="user-plus"></i> 加入名冊
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Dark Mode Toggle -->
   <button class="theme-toggle" aria-label="切換深色模式">
     <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1280,15 +1627,17 @@
   </footer>
 
   <!-- Scripts -->
-  <script src="js/app.min.js?v=20260502l"></script>
+  <script src="js/app.min.js?v=20260604r"></script>
   <script src="js/quiz.min.js?v=20260303n"></script>
   <script src="js/ap-directory.min.js?v=20260303n"></script>
   <script src="js/ap-chain.min.js?v=20260502l"></script>
-  <script src="js/books.min.js?v=20260502c"></script>
-  <script src="js/changelog.min.js?v=20260303n"></script>
+  <script src="js/books.min.js?v=20260604b"></script>
+  <script src="js/changelog.min.js?v=20260303o"></script>
   <script src="js/export-utils.min.js?v=20260303n"></script>
   <script src="js/readmoo-search.min.js?v=20260502c"></script>
   <script src="js/ap-log.min.js?v=20260502l"></script>
   <script src="js/deals.js?v=20260319b"></script>
+  <script src="js/coupon.js?v=20260604p"></script>
+  <script src="js/recommend.js?v=20260604j"></script>
 </body>
 </html>

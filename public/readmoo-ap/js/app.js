@@ -8,7 +8,7 @@ const CONFIG = {
   // Google Sheets ID
   SHEET_ID: '1xjGSZquaGyLPRWsBEKtM2_1t_CRS1LLKSF76NhYzaeA',
   // Google Apps Script Web App URL
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwdRGfRb8YvPdOzewdvPZgchW8JHd6sQVL6AJ-AIjxgw41PDL4VZfZtGWYeh69cqObX/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzaIpW_bkjDqspXf_zbv0ok0jsDKIOPcXdfuTcIWQagFoT-7lbsdK2Ges4iNZuFBBXg/exec',
   // localStorage keys
   STORAGE_KEYS: {
     BOOKS: 'readmoo-ap-books',
@@ -26,6 +26,21 @@ const AppState = {
   user: null,
   isVerified: false
 };
+window.AppState = AppState;
+
+// ============ Safe Local Storage ============
+function readStoredJson(key, fallback) {
+  const saved = localStorage.getItem(key);
+  if (!saved) return fallback;
+  try {
+    return JSON.parse(saved);
+  } catch (error) {
+    console.warn(`已忽略損壞的本機資料：${key}`, error);
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+window.readStoredJson = readStoredJson;
 
 // ============ Tab Router ============
 function initTabs() {
@@ -36,11 +51,15 @@ function initTabs() {
 
   function doSwitchTab(tabId) {
     tabs.forEach(t => {
-      t.classList.toggle('active', t.dataset.tab === tabId);
-      t.setAttribute('aria-selected', t.dataset.tab === tabId);
+      const isActive = t.dataset.tab === tabId;
+      t.classList.toggle('active', isActive);
+      t.setAttribute('aria-selected', isActive);
+      t.tabIndex = isActive ? 0 : -1;
     });
     panels.forEach(p => {
-      p.classList.toggle('active', p.id === `tab-${tabId}`);
+      const isActive = p.id === `tab-${tabId}`;
+      p.classList.toggle('active', isActive);
+      p.setAttribute('aria-hidden', String(!isActive));
     });
     window.location.hash = tabId;
     document.dispatchEvent(new CustomEvent('tab-changed', { detail: { tab: tabId } }));
@@ -54,8 +73,29 @@ function initTabs() {
     doSwitchTab(tabId);
   }
 
-  tabs.forEach(tab => {
+  tabs.forEach((tab, index) => {
+    const tabId = tab.dataset.tab;
+    const panel = document.getElementById(`tab-${tabId}`);
+    tab.id = `tab-button-${tabId}`;
+    tab.setAttribute('aria-controls', `tab-${tabId}`);
+    tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
+    if (panel) {
+      panel.setAttribute('aria-labelledby', tab.id);
+      panel.setAttribute('aria-hidden', String(!panel.classList.contains('active')));
+    }
+
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    tab.addEventListener('keydown', (event) => {
+      let targetIndex = null;
+      if (event.key === 'ArrowRight') targetIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') targetIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') targetIndex = 0;
+      if (event.key === 'End') targetIndex = tabs.length - 1;
+      if (targetIndex === null) return;
+      event.preventDefault();
+      tabs[targetIndex].focus();
+      switchTab(tabs[targetIndex].dataset.tab);
+    });
   });
 
   // Hash routing（延後到 applyInitialHash 呼叫，等成員載入完成）
@@ -120,32 +160,91 @@ function showToast(message, duration = 2500) {
 
 // ============ Modal Helpers ============
 function openModal(id) {
-  document.getElementById(id).style.display = 'flex';
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal._lastFocused = document.activeElement;
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => {
+    const firstFocusable = modal.querySelector(
+      'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), a[href]'
+    );
+    if (firstFocusable) firstFocusable.focus();
+  });
 }
 
 function closeModal(id) {
-  document.getElementById(id).style.display = 'none';
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden', 'true');
+  if (modal._lastFocused && document.contains(modal._lastFocused)) {
+    modal._lastFocused.focus();
+  }
 }
 
 function initModalCloses() {
+  const overlays = document.querySelectorAll('.modal-overlay');
+
+  overlays.forEach((overlay, index) => {
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-hidden', String(overlay.style.display === 'none'));
+    const heading = overlay.querySelector('h2, h3');
+    if (heading) {
+      if (!heading.id) heading.id = `modal-title-${index + 1}`;
+      overlay.setAttribute('aria-labelledby', heading.id);
+    }
+  });
+
   document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
-      btn.closest('.modal-overlay').style.display = 'none';
+      closeModal(btn.closest('.modal-overlay').id);
     });
   });
 
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlays.forEach(overlay => {
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay.style.display = 'none';
+      if (e.target === overlay) closeModal(overlay.id);
     });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const visibleOverlays = Array.from(overlays).filter(
+      overlay => window.getComputedStyle(overlay).display !== 'none'
+    );
+    const activeModal = visibleOverlays.at(-1);
+    if (!activeModal) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal(activeModal.id);
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      const focusable = Array.from(activeModal.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), a[href]'
+      )).filter(element => window.getComputedStyle(element).display !== 'none');
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
   });
 }
 
 // ============ User Session ============
 function loadUser() {
-  const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.USER);
+  const saved = readStoredJson(CONFIG.STORAGE_KEYS.USER, null);
   if (saved) {
-    AppState.user = JSON.parse(saved);
+    AppState.user = saved;
     AppState.isVerified = true;
   }
   updateUserBar();
@@ -166,7 +265,12 @@ function updateUserBar() {
   if (AppState.user && AppState.user.name) {
     const books = typeof getBooks === 'function' ? getBooks() : [];
     const countText = books.length > 0 ? ` · ${books.length} 本書` : '';
-    nameEl.innerHTML = `${AppState.user.name} <span class="local-hint">本機紀錄${countText}</span>`;
+    nameEl.textContent = '';
+    nameEl.appendChild(document.createTextNode(`${AppState.user.name} `));
+    const localHint = document.createElement('span');
+    localHint.className = 'local-hint';
+    localHint.textContent = `本機紀錄${countText}`;
+    nameEl.appendChild(localHint);
     bar.style.display = 'flex';
     if (booksTitle) booksTitle.textContent = `${AppState.user.name} 的書單`;
   } else {
@@ -252,11 +356,10 @@ async function fetchMembersFromSheet() {
   } catch (err) {
     console.error('Failed to fetch from Google Sheets:', err);
     // Try cache
-    const cached = localStorage.getItem(CONFIG.STORAGE_KEYS.AP_CACHE);
+    const cached = readStoredJson(CONFIG.STORAGE_KEYS.AP_CACHE, null);
     if (cached) {
-      const parsed = JSON.parse(cached);
-      AppState.members = parsed.data;
-      return parsed.data;
+      AppState.members = cached.data;
+      return cached.data;
     }
     return [];
   }
@@ -340,6 +443,101 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btnEdit = document.getElementById('btn-edit-directory');
         if (btnEdit) btnEdit.click();
       }, 300);
+    });
+  }
+
+  // 新人加入 AP — 開 modal
+  const qaNewcomer = document.getElementById('qa-add-newcomer');
+  const newcomerModal = document.getElementById('newcomer-modal');
+  const newcomerClose = document.getElementById('newcomer-close-btn');
+  const newcomerCancel = document.getElementById('newcomer-cancel-btn');
+  const newcomerSave = document.getElementById('newcomer-save-btn');
+  const newcomerName = document.getElementById('newcomer-name');
+  const newcomerLink = document.getElementById('newcomer-link');
+
+  function closeNewcomerModal() {
+    closeModal('newcomer-modal');
+  }
+
+  if (qaNewcomer && newcomerModal) {
+    qaNewcomer.addEventListener('click', (e) => {
+      e.preventDefault();
+      // 預填本機身份
+      if (AppState.user && AppState.user.name && newcomerName) {
+        newcomerName.value = AppState.user.name;
+      }
+      openModal('newcomer-modal');
+      setTimeout(() => {
+        if (newcomerName && !newcomerName.value) newcomerName.focus();
+        else if (newcomerLink) newcomerLink.focus();
+      }, 100);
+    });
+  }
+
+  if (newcomerClose) newcomerClose.addEventListener('click', closeNewcomerModal);
+  if (newcomerCancel) newcomerCancel.addEventListener('click', closeNewcomerModal);
+  if (newcomerModal) {
+    newcomerModal.addEventListener('click', (e) => {
+      if (e.target === newcomerModal) closeNewcomerModal();
+    });
+  }
+
+  if (newcomerSave) {
+    newcomerSave.addEventListener('click', async () => {
+      const name = (newcomerName?.value || '').trim();
+      const link = (newcomerLink?.value || '').trim();
+
+      if (!name) { showToast('請填暱稱'); newcomerName?.focus(); return; }
+      if (!link) { showToast('請填 AP 連結'); newcomerLink?.focus(); return; }
+      if (!/^https?:\/\//.test(link)) { showToast('AP 連結要 https:// 開頭'); newcomerLink?.focus(); return; }
+
+      // 檢查是否已有同名成員
+      const existing = AppState.members.find(m => m.name === name);
+      if (existing) {
+        if (!confirm(`名冊已經有「${name}」這個成員了。\n要繼續新增嗎？`)) return;
+      }
+
+      newcomerSave.disabled = true;
+      newcomerSave.textContent = '加入中…';
+
+      try {
+        // 用最大 ID + 1
+        const maxId = Math.max(0, ...AppState.members.map(m => parseInt(m.id) || 0));
+        const nextId = String(maxId + 1);
+
+        const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'add',
+            id: nextId,
+            name: name,
+            link: link,
+            editor: name
+          })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          showToast('歡迎加入！已寫入 AP 名冊');
+          // 把自己存成本機身份（如果還沒設）
+          if (!AppState.user) {
+            saveUser(name, new Date().toISOString().slice(0, 10));
+            updateUserBar();
+          }
+          // 重新拉最新名冊
+          await fetchMembersFromSheet();
+          if (window.initDirectory) initDirectory(AppState.members);
+          closeNewcomerModal();
+        } else {
+          showToast('加入失敗：' + (result.message || '未知錯誤'));
+        }
+      } catch (err) {
+        showToast('網路異常：' + err.message);
+      } finally {
+        newcomerSave.disabled = false;
+        newcomerSave.innerHTML = '<i data-lucide="user-plus"></i> 加入名冊';
+        if (window.lucide) lucide.createIcons();
+      }
     });
   }
 

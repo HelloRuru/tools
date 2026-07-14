@@ -4,8 +4,7 @@
  */
 
 function getBooks() {
-  const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.BOOKS);
-  return saved ? JSON.parse(saved) : [];
+  return readStoredJson(CONFIG.STORAGE_KEYS.BOOKS, []);
 }
 
 function saveBooks(books) {
@@ -365,3 +364,4 @@ function initBooks() {
 
 window.initBooks = initBooks;
 window.getBooks = getBooks;
+window.saveBooks = saveBooks;

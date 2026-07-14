@@ -78,6 +78,15 @@ export async function onRequest(context) {
     const price = priceStr ? parseFloat(priceStr) : 0;
     const pubdate = (bookHtml.match(/出版日期：(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
 
+    // 標籤：讀墨書頁底部的 <a href="/tag/xxx">標籤名</a>
+    const tags = [];
+    const tagRegex = /<a[^>]+href="(?:https?:\/\/readmoo\.com)?\/tag\/[^"]+"[^>]*>([^<]+)<\/a>/g;
+    let tagMatch;
+    while ((tagMatch = tagRegex.exec(bookHtml)) !== null) {
+      const t = tagMatch[1].trim();
+      if (t && !tags.includes(t)) tags.push(t);
+    }
+
     return resp({
       book: {
         id: realId,
@@ -87,6 +96,7 @@ export async function onRequest(context) {
         price,
         cover,
         pubdate,
+        tags,
         url: `https://readmoo.com/book/${realId}`,
       },
     });

@@ -4,8 +4,7 @@
  */
 
 function getChangelog() {
-  const saved = localStorage.getItem(CONFIG.STORAGE_KEYS.CHANGELOG);
-  return saved ? JSON.parse(saved) : [];
+  return readStoredJson(CONFIG.STORAGE_KEYS.CHANGELOG, []);
 }
 
 function saveChangelog(logs) {
