@@ -30,6 +30,7 @@
 
     if (currentInput.length === 0) {
       hintEl.textContent = '點這裡可用手機鍵盤輸入';
+      hintEl.classList.remove('hint-warn');
       display.classList.remove('has-value');
     } else {
       var val = parseInt(currentInput, 10);
@@ -49,11 +50,10 @@
 
   /* ---- 按鍵處理 ---- */
   function handleDigit(digit) {
-    var next = currentInput + digit;
+    var next = (currentInput + digit).replace(/^0+(?=\d)/, '');
     if (parseInt(next, 10) > 9999 || next.length > 4) {
-      /* 超出上限 → 清掉舊數字，用新按的數字重新開始 */
-      currentInput = digit;
-      updateDisplay();
+      hintEl.textContent = '最多 $9999';
+      hintEl.classList.add('hint-warn');
       return;
     }
     currentInput = next;
@@ -190,12 +190,7 @@
       var action = this.dataset.action;
 
       if (digit !== undefined) {
-        if (digit === '00') {
-          handleDigit('0');
-          handleDigit('0');
-        } else {
-          handleDigit(digit);
-        }
+        handleDigit(digit);
         /* 按數字就即時算 */
         var val = parseInt(currentInput, 10);
         if (val >= 50) renderResults(val);
@@ -203,6 +198,7 @@
         handleBackspace();
         var val2 = parseInt(currentInput, 10);
         if (val2 >= 50) renderResults(val2);
+        else clearResults();
       } else if (action === 'clear') {
         handleClear();
       } else if (action === 'calc') {
@@ -230,6 +226,7 @@
       handleBackspace();
       var val2 = parseInt(currentInput, 10);
       if (val2 >= 50) renderResults(val2);
+      else clearResults();
     } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
       handleClear();
     } else if (e.key === 'Enter') {
@@ -253,52 +250,69 @@
 
     /* 監聽隱藏 input 的輸入 */
     hiddenInput.addEventListener('input', function () {
-      var val = this.value.replace(/\D/g, '').substring(0, 4);
+      var val = this.value.replace(/\D/g, '').substring(0, 4).replace(/^0+(?=\d)/, '');
       currentInput = val;
       this.value = val;
       updateDisplay();
       var num = parseInt(val, 10);
       if (num >= 50) renderResults(num);
-      else if (!val) clearResults();
+      else clearResults();
     });
-
-    /* 同步：按鈕操作後也更新隱藏 input 的值 */
-    var origHandleDigit = handleDigit;
-    var origHandleClear = handleClear;
-    var origHandleBackspace = handleBackspace;
-
-    /* 覆寫 updateDisplay，每次都同步 hiddenInput */
-    var origUpdateDisplay = updateDisplay;
   }
 
   /* ---- 深色模式 ---- */
   var toggle = document.getElementById('theme-toggle');
-  var stored = localStorage.getItem('helloruru-theme');
+  var stored = null;
+  try {
+    stored = localStorage.getItem('helloruru-theme');
+  } catch (error) {
+    stored = null;
+  }
 
   if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');
   }
 
+  function syncThemeToggle() {
+    var isDark = document.documentElement.classList.contains('dark');
+    toggle.setAttribute('aria-pressed', String(isDark));
+    toggle.setAttribute('aria-label', isDark ? '切換為淺色模式' : '切換為深色模式');
+  }
+
+  syncThemeToggle();
   toggle.addEventListener('click', function () {
     document.documentElement.classList.toggle('dark');
-    localStorage.setItem('helloruru-theme',
-      document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    syncThemeToggle();
+    try {
+      localStorage.setItem('helloruru-theme',
+        document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    } catch (error) {
+      /* 無痕模式或儲存空間停用時，仍保留本次切換 */
+    }
   });
 
   /* ---- Footer 年份 ---- */
   var yearEl = document.getElementById('footer-year');
-  if (yearEl) yearEl.textContent = new Date().getFullYear();
+  if (yearEl) {
+    var startYear = 2026;
+    var currentYear = new Date().getFullYear();
+    yearEl.textContent = currentYear > startYear ? startYear + '–' + currentYear : String(startYear);
+  }
 
   /* ---- Stagger 淡入 ---- */
-  var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        io.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-
-  document.querySelectorAll('.fade').forEach(function (el) { io.observe(el); });
+  var fadeElements = document.querySelectorAll('.fade');
+  if ('IntersectionObserver' in window || typeof IntersectionObserver !== 'undefined') {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    fadeElements.forEach(function (el) { io.observe(el); });
+  } else {
+    fadeElements.forEach(function (el) { el.classList.add('visible'); });
+  }
 
 })();

@@ -30,17 +30,18 @@
   <meta name="twitter:image" content="https://tools.helloruru.com/readmoo-buy/og.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260415a">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20260415a">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260715a">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20260715a">
   <meta name="theme-color" content="#A8B5A0">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://lab.helloruru.com" crossorigin>
-  <link rel="preload" href="https://lab.helloruru.com/fonts/GenWanMin2TC-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="https://lab.helloruru.com/fonts/NotoSerifTC-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="https://lab.helloruru.com/fonts/GenSenRounded-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="https://lab.helloruru.com/fonts/GenSenRounded-Medium.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="https://lab.helloruru.com/fonts/GenSenRounded-Bold.woff2" as="font" type="font/woff2" crossorigin>
 
   <!-- CSS -->
-  <link rel="stylesheet" href="css/style.min.css?v=20260415a">
+  <link rel="stylesheet" href="css/style.min.css?v=20260715a">
 
   <!-- JSON-LD -->
   <script type="application/ld+json">
@@ -65,44 +66,47 @@
   <hello-ruru-header title="讀墨省錢計算機"></hello-ruru-header>
 
   <main id="main-content" class="main-content">
+    <h1 class="visually-hidden">讀墨省錢計算機</h1>
 
     <!-- Calculator Body -->
     <div class="calculator">
       <!-- Screen -->
       <div class="calc-screen" id="calc-screen">
-        <div class="calc-screen-label">書本售價</div>
+        <label class="calc-screen-label" for="hidden-input">書本售價</label>
         <div class="calc-screen-display">
           <span class="calc-currency">$</span>
           <span class="calc-price-display" id="price-display">0</span>
           <input type="number" id="hidden-input" class="hidden-input"
-                 inputmode="numeric" pattern="[0-9]*"
-                 aria-label="輸入書本售價" autocomplete="off">
+                 inputmode="numeric"
+                 min="50" max="9999" step="1"
+                 aria-label="輸入書本售價" aria-describedby="screen-hint"
+                 autocomplete="off">
         </div>
         <div class="calc-screen-hint" id="screen-hint">點這裡可用手機鍵盤輸入</div>
       </div>
 
       <!-- Number Keypad (like a real calculator) -->
       <div class="calc-keypad">
-        <button class="calc-key" data-digit="7">7</button>
-        <button class="calc-key" data-digit="8">8</button>
-        <button class="calc-key" data-digit="9">9</button>
-        <button class="calc-key calc-key--func" data-action="backspace">
+        <button type="button" class="calc-key" data-digit="7">7</button>
+        <button type="button" class="calc-key" data-digit="8">8</button>
+        <button type="button" class="calc-key" data-digit="9">9</button>
+        <button type="button" class="calc-key calc-key--func" data-action="backspace" aria-label="刪除上一位">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><line x1="18" x2="12" y1="9" y2="15"/><line x1="12" x2="18" y1="9" y2="15"/></svg>
         </button>
-        <button class="calc-key" data-digit="4">4</button>
-        <button class="calc-key" data-digit="5">5</button>
-        <button class="calc-key" data-digit="6">6</button>
-        <button class="calc-key calc-key--clear" data-action="clear">C</button>
-        <button class="calc-key" data-digit="1">1</button>
-        <button class="calc-key" data-digit="2">2</button>
-        <button class="calc-key" data-digit="3">3</button>
-        <button class="calc-key calc-key--enter" data-action="calc">計算</button>
-        <button class="calc-key calc-key--zero" data-digit="0">0</button>
-        <button class="calc-key" data-digit="00">00</button>
+        <button type="button" class="calc-key" data-digit="4">4</button>
+        <button type="button" class="calc-key" data-digit="5">5</button>
+        <button type="button" class="calc-key" data-digit="6">6</button>
+        <button type="button" class="calc-key calc-key--clear" data-action="clear" aria-label="清除價格">C</button>
+        <button type="button" class="calc-key" data-digit="1">1</button>
+        <button type="button" class="calc-key" data-digit="2">2</button>
+        <button type="button" class="calc-key" data-digit="3">3</button>
+        <button type="button" class="calc-key calc-key--enter" data-action="calc">計算</button>
+        <button type="button" class="calc-key calc-key--zero" data-digit="0">0</button>
+        <button type="button" class="calc-key" data-digit="00">00</button>
       </div>
 
       <!-- Results -->
-      <div class="calc-results" id="calc-results" aria-live="polite">
+      <div class="calc-results" id="calc-results" aria-live="polite" aria-atomic="true">
         <div class="calc-result-placeholder">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
@@ -113,7 +117,7 @@
       </div>
 
       <!-- Advice -->
-      <div class="calc-advice" id="calc-advice"></div>
+      <div class="calc-advice" id="calc-advice" role="status" aria-live="polite"></div>
     </div>
 
     <!-- Cheat Sheet -->
@@ -122,24 +126,24 @@
       <p class="cheat-sheet-subtitle">不想算？記住這幾個數字就夠了。</p>
       <div class="cheat-cards">
         <div class="cheat-card cheat-card--highlight">
-          <div class="cheat-card-range">$50 ~ $199</div>
+          <div class="cheat-card-range">$50 ~ $202</div>
           <div class="cheat-card-best">折50券</div>
-          <div class="cheat-card-tip">不限金額折$50，便宜書最強解</div>
+          <div class="cheat-card-tip">$198 起和 75 折接近，手邊有哪張就用哪張</div>
         </div>
         <div class="cheat-card">
-          <div class="cheat-card-range">$200 ~ $223</div>
+          <div class="cheat-card-range">$203 ~ $222</div>
           <div class="cheat-card-best">75折券</div>
-          <div class="cheat-card-tip">75折開始勝出，折50打平後漸輸</div>
+          <div class="cheat-card-tip">$221 起和領書額度接近</div>
         </div>
         <div class="cheat-card cheat-card--highlight">
-          <div class="cheat-card-range">$224 ~ $250</div>
+          <div class="cheat-card-range">$223 ~ $250</div>
           <div class="cheat-card-best">領書額度</div>
           <div class="cheat-card-tip">領書的甜蜜區，一點 $167 最超值</div>
         </div>
         <div class="cheat-card">
-          <div class="cheat-card-range">$255 ~ $444</div>
+          <div class="cheat-card-range">$251 ~ $444</div>
           <div class="cheat-card-best">75折券</div>
-          <div class="cheat-card-tip">75折重新勝出，折50券仍比領書額度划算</div>
+          <div class="cheat-card-tip">75折重新勝出，$444 與領書額度同價</div>
         </div>
         <div class="cheat-card cheat-card--highlight">
           <div class="cheat-card-range">$445 ~ $500</div>
@@ -152,7 +156,7 @@
           <div class="cheat-card-tip">高價書輸入計算機算最準</div>
         </div>
       </div>
-      <p class="cheat-sheet-note">有 7 折券的話，上面所有 75 折區間都可以改用 7 折更省。領書甜蜜區也會縮至 $240~$250。</p>
+      <p class="cheat-sheet-note">有 7 折券時：$165~$237 可優先用 7 折（部分邊界同價），領書甜蜜區是 $238~$250；$251 以上直接輸入計算最準。</p>
     </section>
 
     <!-- Tips -->
@@ -308,7 +312,7 @@
   </main>
 
   <!-- Theme Toggle -->
-  <button class="theme-toggle" id="theme-toggle" aria-label="切換深色模式">
+  <button type="button" class="theme-toggle" id="theme-toggle" aria-label="切換為深色模式" aria-pressed="false">
     <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
     </svg>
@@ -328,6 +332,6 @@
   </footer>
 
   <!-- JS -->
-  <script src="js/app.min.js?v=20260415a" defer></script>
+  <script src="js/app.min.js?v=20260715a" defer></script>
 </body>
 </html>

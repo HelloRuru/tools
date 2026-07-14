@@ -5,7 +5,8 @@
 /* ---- 1. CSS Variables ---- */
 :root {
   --color-sage: #A8B5A0;
-  --color-sage-dark: #889B7E;
+  --color-sage-dark: #5F7558;
+  --color-action-bg: #5F7558;
   --color-sage-light: #C5CFBF;
   --color-sage-bg: rgba(168, 181, 160, 0.10);
   --color-lavender-gray: #AEA8B8;
@@ -13,14 +14,14 @@
   --color-lavender-bg: rgba(174, 168, 184, 0.10);
   --color-ink: #5C4A3A;
   --color-gold: #C2B280;
-  --color-gold-dark: #A89860;
+  --color-gold-dark: #6F6236;
   --color-gold-light: #D8CDA5;
   --color-gold-bg: rgba(194, 178, 128, 0.12);
 
   --text-primary: #3D3833;
   --text-secondary: #5C5650;
-  --text-muted: #8A847E;
-  --text-hint: #B0A99F;
+  --text-muted: #716B65;
+  --text-hint: #746E68;
 
   --bg-page: #F7F5F2;
   --bg-card: #FFFFFF;
@@ -50,53 +51,54 @@
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
 
-  --font-serif: 'GenWanMin2TC', 'Noto Serif TC', serif;
-  --font-body: 'NotoSerifTC', 'Noto Serif TC', serif;
+  --font-serif: 'GenSenRounded', 'Noto Sans TC', sans-serif;
+  --font-body: 'GenSenRounded', 'Noto Sans TC', sans-serif;
 }
 
 /* ---- Dark Mode ---- */
 html.dark {
   --color-sage: #B0BDA8;
-  --color-sage-dark: #95A88C;
+  --color-sage-dark: #B0BDA8;
+  --color-action-bg: #5F7558;
   --color-lavender-gray: #B8B2C2;
   --color-gold: #D0C090;
-  --color-gold-dark: #B8A870;
+  --color-gold-dark: #D0C090;
   --color-gold-bg: rgba(208, 192, 144, 0.08);
   --color-ink: #D4C8BC;
 
   --text-primary: #E8E5E2;
   --text-secondary: #C4BFB8;
-  --text-muted: #8A857E;
-  --text-hint: #6B665F;
+  --text-muted: #928C86;
+  --text-hint: #9E9496;
 
-  --bg-page: #1C1E1A;
-  --bg-card: #26282A;
-  --border-color: #3A3C38;
+  --bg-page: #1E181B;
+  --bg-card: #282224;
+  --border-color: #4D4548;
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.30);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 2px 8px rgba(94, 62, 72, 0.25);
+  --shadow-md: 0 4px 16px rgba(94, 62, 72, 0.30);
+  --shadow-lg: 0 8px 32px rgba(94, 62, 72, 0.40);
 
   --gradient-primary: linear-gradient(135deg, #B0BDA8, #8BBCB0);
 }
 
 /* ---- 2. Font Face ---- */
 @font-face {
-  font-family: 'GenWanMin2TC';
-  src: url('https://lab.helloruru.com/fonts/GenWanMin2TC-SemiBold.woff2') format('woff2');
-  font-weight: 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'NotoSerifTC';
-  src: url('https://lab.helloruru.com/fonts/NotoSerifTC-Regular.woff2') format('woff2');
+  font-family: 'GenSenRounded';
+  src: url('https://lab.helloruru.com/fonts/GenSenRounded-Regular.woff2') format('woff2');
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
-  font-family: 'NotoSerifTC';
-  src: url('https://lab.helloruru.com/fonts/NotoSerifTC-SemiBold.woff2') format('woff2');
-  font-weight: 600;
+  font-family: 'GenSenRounded';
+  src: url('https://lab.helloruru.com/fonts/GenSenRounded-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GenSenRounded';
+  src: url('https://lab.helloruru.com/fonts/GenSenRounded-Bold.woff2') format('woff2');
+  font-weight: 700;
   font-display: swap;
 }
 
@@ -114,7 +116,7 @@ html {
 body {
   font-family: var(--font-body);
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.8;
   letter-spacing: 0.04em;
   color: var(--text-primary);
@@ -124,10 +126,17 @@ body {
 
 h1, h2, h3 {
   font-family: var(--font-serif);
-  font-weight: 600;
   color: var(--color-ink);
   letter-spacing: 0.06em;
   line-height: 1.4;
+}
+
+h1 {
+  font-weight: 700;
+}
+
+h2, h3 {
+  font-weight: 500;
 }
 
 h2 {
@@ -141,12 +150,24 @@ h3 {
 }
 
 a {
-  color: var(--color-sage);
+  color: var(--color-sage-dark);
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: color var(--transition-fast);
 }
 a:hover { color: var(--color-sage-dark); }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ---- 4. Layout ---- */
 .main-content {
@@ -191,6 +212,11 @@ a:hover { color: var(--color-sage-dark); }
   transition: background-color 300ms ease, border-color 300ms ease;
 }
 
+.calc-screen:focus-within {
+  border-color: var(--color-sage-dark);
+  box-shadow: 0 0 0 3px var(--color-sage-bg);
+}
+
 .calc-screen-label {
   font-size: 12px;
   letter-spacing: 2px;
@@ -210,14 +236,14 @@ a:hover { color: var(--color-sage-dark); }
 .calc-currency {
   font-family: var(--font-serif);
   font-size: 24px;
-  font-weight: 600;
-  color: var(--color-sage);
+  font-weight: 700;
+  color: var(--color-sage-dark);
 }
 
 .calc-price-display {
   font-family: var(--font-serif);
   font-size: clamp(36px, 8vw, 48px);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-hint);
   letter-spacing: 0.02em;
   min-width: 60px;
@@ -272,7 +298,7 @@ a:hover { color: var(--color-sage-dark); }
 .calc-key {
   font-family: var(--font-serif);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   background: var(--bg-page);
   border: 1.5px solid var(--border-color);
@@ -311,9 +337,9 @@ a:hover { color: var(--color-sage-dark); }
 
 /* Clear key */
 .calc-key--clear {
-  color: var(--color-sage);
-  font-weight: 600;
-  border-color: var(--color-sage-light);
+  color: var(--color-sage-dark);
+  font-weight: 700;
+  border-color: var(--color-sage-dark);
   background: var(--color-sage-bg);
 }
 
@@ -321,12 +347,12 @@ a:hover { color: var(--color-sage-dark); }
 .calc-key--enter {
   grid-row: 3 / 5;
   grid-column: 4;
-  background: var(--color-sage);
+  background: var(--color-action-bg);
   color: #FFFFFF;
-  border-color: var(--color-sage);
+  border-color: var(--color-action-bg);
   font-family: var(--font-serif);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
 }
 .calc-key--enter:hover {
@@ -381,14 +407,14 @@ a:hover { color: var(--color-sage-dark); }
 
 .calc-card--best {
   background: var(--status-success-bg);
-  border-color: var(--color-sage);
+  border-color: var(--color-sage-dark);
   transform: rotate(0.5deg);
 }
 
 .calc-card-badge {
   display: inline-block;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-gold-dark);
   background: var(--color-gold-bg);
   border: 1px solid var(--color-gold);
@@ -401,7 +427,7 @@ a:hover { color: var(--color-sage-dark); }
 .calc-card-name {
   font-family: var(--font-serif);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-ink);
   margin-bottom: var(--space-xs);
 }
@@ -409,7 +435,7 @@ a:hover { color: var(--color-sage-dark); }
 .calc-card-cost {
   font-family: var(--font-serif);
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-ink);
   letter-spacing: 0.02em;
 }
@@ -422,7 +448,7 @@ a:hover { color: var(--color-sage-dark); }
 
 .calc-card-saved {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-sage-dark);
   margin-top: var(--space-xs);
 }
@@ -439,7 +465,7 @@ a:hover { color: var(--color-sage-dark); }
   line-height: 1.7;
   color: var(--text-secondary);
   background: var(--bg-page);
-  border-left: 3px solid var(--color-sage);
+  border-left: 3px solid var(--color-sage-dark);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
   padding: var(--space-md) var(--space-lg);
   margin-top: var(--space-lg);
@@ -454,7 +480,7 @@ a:hover { color: var(--color-sage-dark); }
 }
 .calc-advice strong {
   color: var(--color-ink);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ---- 6. Cheat Sheet ---- */
@@ -493,7 +519,7 @@ a:hover { color: var(--color-sage-dark); }
 .cheat-card-range {
   font-family: var(--font-serif);
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-ink);
   grid-row: 1;
   grid-column: 1;
@@ -501,7 +527,7 @@ a:hover { color: var(--color-sage-dark); }
 
 .cheat-card-best {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-sage-dark);
   grid-row: 1;
   grid-column: 2;
@@ -599,7 +625,7 @@ a:hover { color: var(--color-sage-dark); }
 }
 .ap-card-text h3 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   margin-bottom: var(--space-xs);
 }
@@ -614,7 +640,7 @@ a:hover { color: var(--color-sage-dark); }
   align-items: center;
   gap: 6px;
   padding: 10px 20px;
-  background: var(--color-sage);
+  background: var(--color-action-bg);
   color: #fff;
   font-size: 14px;
   font-weight: 500;
@@ -650,7 +676,8 @@ a:hover { color: var(--color-sage-dark); }
   align-items: center;
   gap: var(--space-sm);
   font-size: 15px;
-  color: var(--color-sage);
+  min-height: 44px;
+  color: var(--color-sage-dark);
   text-decoration: none;
   padding: var(--space-sm) 0;
 }
@@ -663,7 +690,7 @@ a:hover { color: var(--color-sage-dark); }
 /* ---- 9. Theme Toggle ---- */
 .theme-toggle {
   position: fixed;
-  bottom: var(--space-lg);
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
   right: var(--space-lg);
   width: 44px;
   height: 44px;
@@ -678,10 +705,9 @@ a:hover { color: var(--color-sage-dark); }
   z-index: 200;
   color: var(--text-secondary);
   transition: background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
-  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .theme-toggle:hover {
-  border-color: var(--color-sage);
+  border-color: var(--color-sage-dark);
 }
 .theme-toggle:focus-visible {
   outline: 2px solid var(--color-ink);
@@ -711,7 +737,7 @@ html.dark .icon-moon { display: block; }
   opacity: 0.5;
 }
 .site-footer a {
-  color: var(--color-sage);
+  color: var(--color-sage-dark);
   text-decoration: none;
 }
 .site-footer a:hover {
@@ -732,10 +758,24 @@ html.dark .icon-moon { display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  html,
+  .calculator,
+  .calc-screen,
+  .calc-key,
+  .calc-card,
+  .calc-advice,
+  .cheat-card,
+  .tip-card,
+  .ap-card-inner,
+  .ap-card-btn,
+  .theme-toggle,
+  .site-footer,
+  .fade {
+    transition: none;
+  }
+  .fade {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -745,7 +785,7 @@ html.dark .icon-moon { display: block; }
   top: -100%;
   left: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-sage);
+  background: var(--color-action-bg);
   color: #FFFFFF;
   border-radius: var(--radius-sm);
   z-index: 999;
@@ -760,15 +800,5 @@ html.dark .icon-moon { display: block; }
   }
   .calc-result-cards {
     grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 380px) {
-  .calc-keypad {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .calc-key:nth-child(4),
-  .calc-key:nth-child(5) {
-    grid-column: span 1;
   }
 }
