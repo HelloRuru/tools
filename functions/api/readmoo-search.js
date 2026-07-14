@@ -44,7 +44,7 @@ export async function onRequest(context) {
       cache = caches.default;
       const cacheUrl = new URL(context.request.url);
       // _ck 加版本碼，改演算法時 bump 版本能清掉舊快取
-      cacheUrl.searchParams.set('_ck', 'v3-' + query.toLowerCase());
+      cacheUrl.searchParams.set('_ck', 'v4-' + query.toLowerCase());
       cacheKey = new Request(cacheUrl.toString());
       if (!noCache) {
         const cached = await cache.match(cacheKey);
@@ -177,6 +177,14 @@ function parseSearchResults(html) {
   return books;
 }
 
+export function parsePublishDate(html) {
+  const tag = html.match(/<meta\b[^>]*itemprop=["']datePublished["'][^>]*>/i)?.[0];
+  if (!tag) return '';
+
+  const rawDate = tag.match(/content=["'](\d{4})[\/-](\d{2})[\/-](\d{2})["']/i);
+  return rawDate ? `${rawDate[1]}-${rawDate[2]}-${rawDate[3]}` : '';
+}
+
 // 平行抓出版日期（每本書打一次詳情頁，最多 10 本）
 async function fetchPublishDates(books) {
   // 最多抓前 10 本，避免打太多 request
@@ -188,11 +196,8 @@ async function fetchPublishDates(books) {
         const res = await fetch(book.url, { headers: FETCH_HEADERS });
         if (!res.ok) return;
         const html = await res.text();
-        // 格式：<span>出版日期：2024-02-21</span>
-        const match = html.match(/出版日期：(\d{4}-\d{2}-\d{2})/);
-        if (match) {
-          book.pubdate = match[1];
-        }
+        const pubdate = parsePublishDate(html);
+        if (pubdate) book.pubdate = pubdate;
       } catch (e) {
         // 單本抓不到就跳過，不影響其他
       }
