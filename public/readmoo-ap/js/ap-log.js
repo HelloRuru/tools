@@ -108,7 +108,7 @@ function initApLog() {
           <input type="text" class="input-field ap-log-batch-from" data-idx="${idx}" placeholder="送禮人名字（例：小魚）" value="${escapeHtml(entry.from)}">
           ${batchEntries.length > 1 ? `<button class="btn-icon ap-log-batch-remove" data-idx="${idx}" title="刪除這塊"><i data-lucide="x"></i></button>` : ''}
         </div>
-        <textarea class="input-field ap-log-batch-body" data-idx="${idx}" rows="6" placeholder="貼這個人的 LINE 對話進來&#10;例：&#10;AP*68&#10;@Nancy Tsai&#10;@嚕嚕在看書！">${escapeHtml(entry.body)}</textarea>
+        <textarea class="input-field ap-log-batch-body" data-idx="${idx}" rows="6" placeholder="直接貼這個人的 LINE 對話，不用整理格式&#10;支援：AP*68、AP68、AP*17+68、訂單末碼 68&#10;有時間和名字也可以原樣貼上">${escapeHtml(entry.body)}</textarea>
       </div>
     `).join('');
 
@@ -336,18 +336,21 @@ function initApLog() {
 function parseConversation(body, myNick, fromName) {
   const records = [];
   const blocks = splitIntoBlocks(body);
+  const normalizedNick = normalizeMentionName(myNick);
 
   for (const block of blocks) {
     // 抓區塊內所有訂單末碼
-    const codes = [];
-    const re = /[*#＊＃]\s*(\d{1,6})/g;
-    let bm;
-    while ((bm = re.exec(block)) !== null) codes.push(bm[1]);
+    const codes = extractOrderCodes(block);
     if (codes.length === 0) continue;
 
     // 抓區塊內 @ 名單
     const mentions = extractMentions(block);
-    const meMentioned = mentions.some(m => m === myNick || m.includes(myNick) || myNick.includes(m));
+    const meMentioned = normalizedNick && mentions.some(mention => {
+      const normalizedMention = normalizeMentionName(mention);
+      return normalizedMention === normalizedNick
+        || normalizedMention.includes(normalizedNick)
+        || normalizedNick.includes(normalizedMention);
+    });
     if (!meMentioned) continue;
 
     for (const code of codes) {
@@ -366,28 +369,95 @@ function parseConversation(body, myNick, fromName) {
 }
 
 function splitIntoBlocks(body) {
-  // 用空行切區塊
-  const paragraphs = body.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
-  if (paragraphs.length <= 1) return [body];
-  return paragraphs;
+  const lines = normalizeConversationText(body)
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+  const blocks = [];
+  let current = [];
+  let currentHasCode = false;
+  let currentHasMention = false;
+
+  lines.forEach(line => {
+    const lineHasCode = extractOrderCodes(line).length > 0;
+    // 前一筆已有訂單碼與收禮人時，下一個訂單碼才算新區塊。
+    // 這樣空白行、連續訂單碼與 LINE 時間戳都不會拆錯。
+    if (lineHasCode && currentHasCode && currentHasMention) {
+      blocks.push(current.join('\n'));
+      current = [];
+      currentHasCode = false;
+      currentHasMention = false;
+    }
+    current.push(line);
+    currentHasCode = currentHasCode || lineHasCode;
+    currentHasMention = currentHasMention || /[@＠]/.test(line);
+  });
+
+  if (current.length > 0) blocks.push(current.join('\n'));
+  return blocks;
+}
+
+function normalizeConversationText(text) {
+  return String(text || '')
+    .normalize('NFKC')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[\t ]+/g, ' ');
+}
+
+function extractOrderCodes(text) {
+  const normalized = normalizeConversationText(text);
+  const codes = [];
+  const seen = new Set();
+  const addCode = code => {
+    if (!seen.has(code)) {
+      seen.add(code);
+      codes.push(code);
+    }
+  };
+
+  // *68、#68
+  for (const match of normalized.matchAll(/[*#]\s*(\d{1,6})/g)) {
+    addCode(match[1]);
+  }
+
+  // AP68、AP：68、AP*17+68、AP#17、68
+  const apPattern = /\bAP\s*[:：]?\s*((?:[*#]\s*)?\d{1,6}(?:\s*(?:\+|,|、|\/|&|及|和)\s*(?:AP\s*)?(?:[*#]\s*)?\d{1,6})*)/gi;
+  for (const match of normalized.matchAll(apPattern)) {
+    for (const number of match[1].matchAll(/\d{1,6}/g)) addCode(number[0]);
+  }
+
+  // 訂單末碼 2468、末五碼：2468
+  const tailPattern = /(?:訂單\s*)?末(?:[一二三四五六七八九十\d]\s*)?碼\s*[:：#*]?\s*(\d{1,6})/g;
+  for (const match of normalized.matchAll(tailPattern)) {
+    addCode(match[1]);
+  }
+
+  return codes;
 }
 
 function extractMentions(text) {
   const mentions = [];
-  // @ 後抓到下一個 @ 之前 / 換行 / AP 字樣 / 字串結尾
-  // 不要吃進下一個 @
-  const re = /@([^@\n]+?)(?=\s*@|\s*$|\n|\s+AP[*#＊＃])/g;
+  const normalized = normalizeConversationText(text);
+  // @ 後抓到下一個 @ 或換行，容許名字後面帶回覆文字。
+  const re = /@([^@\n]+)/g;
   let m;
-  while ((m = re.exec(text)) !== null) {
+  while ((m = re.exec(normalized)) !== null) {
     let raw = m[1].trim();
-    // 移除尾巴的 AP 字樣（例如「@瑞瑞 AP*17+68」中 raw 會是「瑞瑞」，但有時會吃到「瑞瑞 AP」）
-    raw = raw.replace(/\s*AP[*#＊＃].*$/, '').trim();
+    raw = raw.replace(/\s+AP\s*[:*#]?\s*\d.*$/i, '').trim();
     // 跳過 +1, +2, +N 這種
     if (/^\+\d+$/.test(raw)) continue;
     if (raw.length === 0) continue;
     mentions.push(raw);
   }
   return mentions;
+}
+
+function normalizeMentionName(name) {
+  return normalizeConversationText(name)
+    .toLocaleLowerCase('zh-TW')
+    .replace(/^[\s@]+|[\s!！?？。．,，、:：;；]+$/g, '')
+    .trim();
 }
 
 function getLog() {
