@@ -312,7 +312,7 @@ const CLOUD_LIBRARIES = {
 function mapCloudBook(b) {
   return {
     id: b.bookId || b.id,
-    title: b.title || '',
+    title: decodeEntities(b.title || ''),
     thumbnail: b.coverImageUrl?.medium || b.coverImageUrl?.small || '',
     detailUrl: `https://www.ebookservice.tw/#/book/tcl/${b.bookId || b.id}`,
   };
@@ -342,8 +342,12 @@ async function cloudTopBooks(lib) {
   return (data?.payload?.books || []).map((b, i) => ({ rank: i + 1, ...mapCloudBook(b) }));
 }
 
-async function cloudSearch(query, size = 30, offset = 1) {
-  const url = `${CLOUD_API}/search/web/tcl/0/${size}/${offset}?q=${encodeURIComponent(query)}`;
+// 雲端書庫的搜尋是「全文內文比對」不是書名比對，搜特定書名常混進一堆內文命中的雜書、
+// 甚至書名命中的排很後面。所以這裡多抓一批（POOL）再自己重排：書名命中的浮到最前面。
+// 若整批都沒有書名命中，回傳 titleMatched=false，讓前端誠實提示「可能沒收這本」。
+const CLOUD_SEARCH_POOL = 50; // 撈這麼多來重排
+async function cloudSearch(query, size = 30) {
+  const url = `${CLOUD_API}/search/web/tcl/0/${CLOUD_SEARCH_POOL}/1?q=${encodeURIComponent(query)}`;
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -357,15 +361,15 @@ async function cloudSearch(query, size = 30, offset = 1) {
   const found = data?.payload?.hits?.found || 0;
   const hits = data?.payload?.hits?.hit || [];
 
-  const books = hits.map(h => {
+  const raw = hits.map(h => {
     const f = h.fields || {};
     // sites 陣列 = 有此書的縣市館（含重複與 "0"，去重去零後即館數）
     const siteSet = new Set((f.sites || []).filter(s => s && s !== '0'));
     return {
       id: f.id || h.id,
-      title: f.title || '',
-      creators: Array.isArray(f.creators) ? f.creators.join('、') : (f.creators || ''),
-      publisher: f.publisher || '',
+      title: decodeEntities(f.title || ''),
+      creators: decodeEntities(Array.isArray(f.creators) ? f.creators.join('、') : (f.creators || '')),
+      publisher: decodeEntities(f.publisher || ''),
       year: f.year || '',
       thumbnail: h.coverImageUrl?.medium || h.coverImageUrl?.small || '',
       siteCount: siteSet.size,
@@ -374,7 +378,24 @@ async function cloudSearch(query, size = 30, offset = 1) {
     };
   });
 
-  return { query, found, books };
+  // 重排：書名完整含關鍵字 → 分數 2；書名含關鍵字去掉「的、之」等虛字後仍連續 → 1；其餘 0
+  const q = query.trim();
+  const qLoose = q.replace(/[的之了與和及]/g, '');
+  const titleScore = (t) => {
+    if (t.includes(q)) return 2;
+    if (qLoose.length >= 2 && t.includes(qLoose)) return 1;
+    return 0;
+  };
+  // 穩定排序：先按書名命中分數降冪，同分維持原本的相關度順序
+  const books = raw
+    .map((b, i) => ({ b, i, s: titleScore(b.title) }))
+    .sort((x, y) => y.s - x.s || x.i - y.i)
+    .map(o => o.b)
+    .slice(0, size);
+
+  const titleMatched = books.some(b => titleScore(b.title) > 0);
+
+  return { query, found, titleMatched, books };
 }
 
 export async function onRequest(context) {
@@ -555,7 +576,7 @@ export async function onRequest(context) {
     } else if (action === 'cloud-search' && query) {
       // 臺灣雲端書庫跨館搜尋（HyRead 搜尋頁被 Cloudflare 擋後的替代源）
       // 回傳每本書 + siteCount（全台幾個縣市館有此書）
-      const result = await cloudSearch(query, 30, 1);
+      const result = await cloudSearch(query, 30);
       return jsonResponse({ source: '臺灣雲端書庫', ...result });
 
     } else if (action === 'search' && query) {

@@ -194,11 +194,18 @@ async function searchBooks() {
 function renderCloudSearchResult(query, res) {
   const books = res.books || [];
   const found = res.found || 0;
+  const titleMatched = res.titleMatched !== false; // 後端沒回就當有命中（相容）
+
+  // 書名沒命中時誠實提示：雲端書庫的搜尋是全文比對，可能沒收這本書
+  const notice = (!titleMatched && books.length > 0)
+    ? `<p class="cross-notice">雲端書庫裡沒有書名剛好叫「${escapeHtml(query)}」的電子書，以下是內文提到相關字詞的推薦。可試試改打作者、副標，或書名的主要幾個字。</p>`
+    : '';
 
   let html = `
     <div class="lib-search-summary">
       <h2 class="lib-search-title">「${escapeHtml(query)}」全台雲端書庫</h2>
       <p class="cross-desc">共找到 <strong>${found}</strong> 筆相關書籍，以下列出前 ${books.length} 筆。每本書標示「全台幾個縣市館可借」。</p>
+      ${notice}
     </div>
   `;
 
