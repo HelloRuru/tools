@@ -181,22 +181,15 @@ async function searchBooks() {
   const query = document.getElementById('search-input').value.trim();
   if (!query) { showToast('請輸入書名'); return; }
 
-  const lib = document.getElementById('search-lib').value || 'tpml';
-  const libName = libraries[lib] || '圖書館';
-
-  showLoading(true, `查詢「${query}」在${libName}...`);
+  showLoading(true, `查詢「${query}」中（掃全台雲端書庫）...`);
   clearResults();
   document.getElementById('lib-search-result').innerHTML = '';
   document.getElementById('lib-search-result').classList.add('hidden');
 
   try {
-    // 同時打兩個請求：全部館藏 + 只看計次
-    const [allRes, mocRes] = await Promise.all([
-      fetchAPI({ action: 'lib-search', lib, q: query, scope: 2 }),
-      fetchAPI({ action: 'lib-search', lib, q: query, scope: 4 }),
-    ]);
-
-    renderLibSearchResult(query, libName, lib, allRes, mocRes);
+    // 臺灣雲端書庫跨館搜尋：一次查全台，每本書自帶「幾個縣市館可借」
+    const res = await fetchAPI({ action: 'cloud-search', q: query });
+    renderCloudSearchResult(query, res);
   } catch (err) {
     showToast('搜尋失敗：' + err.message);
   } finally {
@@ -204,81 +197,49 @@ async function searchBooks() {
   }
 }
 
-function renderLibSearchResult(query, libName, lib, allRes, mocRes) {
-  const allBooks = allRes.books || [];
-  const mocIds = new Set((mocRes.books || []).map(b => b.id));
-  const allCount = allRes.queryNum || 0;
-  const mocCount = mocRes.queryNum || 0;
-  const buyCount = allCount - mocCount;
+function renderCloudSearchResult(query, res) {
+  const books = res.books || [];
+  const found = res.found || 0;
 
-  // 分類每本書：計次 vs 買斷
-  const categorized = allBooks.map(b => ({
-    ...b,
-    type: mocIds.has(b.id) ? 'moc' : 'buy',
-  }));
-
-  // 渲染統計區
   let html = `
     <div class="lib-search-summary">
-      <h2 class="lib-search-title">「${escapeHtml(query)}」在 ${escapeHtml(libName)}</h2>
-      <div class="lib-search-stats">
-        <div class="stat-card stat-moc">
-          <div class="stat-num">${mocCount}</div>
-          <div class="stat-label">計次館藏</div>
-          <div class="stat-desc">借閱會扣月配額（每館每月 10 次）</div>
-        </div>
-        <div class="stat-card stat-buy">
-          <div class="stat-num">${buyCount}</div>
-          <div class="stat-label">該館買斷</div>
-          <div class="stat-desc">不扣配額，但有冊數上限，借滿要預約</div>
-        </div>
-        <div class="stat-card stat-total">
-          <div class="stat-num">${allCount}</div>
-          <div class="stat-label">全部館藏</div>
-          <div class="stat-desc">這間圖書館一共多少本相關書</div>
-        </div>
-      </div>
+      <h2 class="lib-search-title">「${escapeHtml(query)}」全台雲端書庫</h2>
+      <p class="cross-desc">共找到 <strong>${found}</strong> 筆相關書籍，以下列出前 ${books.length} 筆。每本書標示「全台幾個縣市館可借」。</p>
     </div>
   `;
 
-  if (allCount === 0) {
+  if (books.length === 0) {
     html += `
       <div class="lib-search-empty">
-        <p>${escapeHtml(libName)}找不到「${escapeHtml(query)}」的相關書籍。</p>
-        <p>可以試「查全台圖書館」看看其他館有沒有，或換個關鍵字（例如：副標、作者）。</p>
-        <button class="btn btn-secondary" id="btn-cross-search">查全台圖書館（會慢一點）</button>
+        <p>找不到「${escapeHtml(query)}」的相關電子書。</p>
+        <p>換個關鍵字試試（例如：副標、作者，或只打書名主要幾個字）。</p>
       </div>
     `;
   } else {
-    // 列出書本卡片
     html += '<div class="lib-search-books">';
-    for (const book of categorized) {
-      const badge = book.type === 'moc'
-        ? '<span class="badge badge-moc">計次</span>'
-        : '<span class="badge badge-buy">該館買斷</span>';
-      const detailUrl = `https://${lib}.ebook.hyread.com.tw/bookDetail.jsp?id=${book.id}`;
-      const cover = book.thumbnail || `https://webcdn2.ebook.hyread.com.tw/bookcover/${book.id}.jpg`;
+    for (const book of books) {
+      const siteBadge = book.siteCount > 0
+        ? `<span class="badge badge-moc">全台 ${book.siteCount} 館可借</span>`
+        : '<span class="badge badge-buy">暫無館藏</span>';
+      const meta = [book.creators, book.publisher, book.year].filter(Boolean).join('｜');
       html += `
-        <a class="lib-book-card" href="${detailUrl}" target="_blank" rel="noopener">
-          <img class="lib-book-cover" src="${escapeHtml(cover)}" alt="${escapeHtml(book.title)}" loading="lazy" onerror="this.style.display='none'">
+        <a class="lib-book-card" href="${escapeHtml(book.detailUrl)}" target="_blank" rel="noopener">
+          <img class="lib-book-cover" src="${escapeHtml(book.thumbnail)}" alt="${escapeHtml(book.title)}" loading="lazy" onerror="this.style.display='none'">
           <div class="lib-book-meta">
-            ${badge}
+            ${siteBadge}
             <div class="lib-book-title">${escapeHtml(book.title)}</div>
-            <div class="lib-book-link">查看書況 →</div>
+            ${meta ? `<div class="lib-book-sub">${escapeHtml(meta)}</div>` : ''}
+            <div class="lib-book-link">看借閱頁 →</div>
           </div>
         </a>
       `;
     }
     html += '</div>';
-    html += '<button class="btn btn-secondary" id="btn-cross-search" style="margin-top:16px">查全台圖書館（會慢一點）</button>';
   }
 
   const container = document.getElementById('lib-search-result');
   container.innerHTML = html;
   container.classList.remove('hidden');
-
-  const crossBtn = document.getElementById('btn-cross-search');
-  if (crossBtn) crossBtn.addEventListener('click', () => crossLibrarySearch(query));
 
   if (window.lucide) lucide.createIcons();
 }

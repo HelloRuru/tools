@@ -41,13 +41,15 @@ function jsonResponse(data, status = 200) {
 }
 
 // 抓 HyRead 頁面 HTML
-// 注意：HyRead 主站（one.ebook.hyread.com.tw）會擋帶 Chrome User-Agent 的請求，
-// 反而沒帶 UA 或只帶 Accept 都能通。子站對 UA 沒意見。
-// 為了同時相容主站 + 子站，這裡只送 Accept，不偽裝 UA、不帶 Cookie。
+// 注意（2026-07-15 更新）：HyRead 全站掛上了 Cloudflare 挑戰（Cf-Mitigated: challenge）。
+// 規則跟以前完全相反 —— 現在「不帶 User-Agent 會被擋 403」，帶正常的瀏覽器 UA 反而放行。
+// 所以這裡改成偽裝成一般 Chrome 請求（UA + Accept-Language），才能通過 Cloudflare。
 async function fetchHyRead(url) {
   const res = await fetch(url, {
     headers: {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
     },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -286,6 +288,49 @@ async function recordFirstSeen(kv, lib, books) {
   return books;
 }
 
+// ─── 臺灣雲端書庫搜尋（HyRead 搜尋頁 2026-07 起被 Cloudflare 全託管挑戰擋死，改用這個）───
+// 臺灣雲端書庫（ebookservice.tw）是另一套全台 24 縣市館的公共電子書借閱系統，
+// 提供乾淨的 JSON API、不擋爬蟲，且搜尋結果自帶 sites 陣列（哪些縣市館有此書），
+// 天然支援「跨館搜尋」——一次查就知道全台幾個館可借。
+// 逆向出的端點：GET /api/1.00/search/web/{館別}/0/{取幾筆}/{起始offset}?q={關鍵字}
+//   第三格 = 這次取幾筆、第四格 = 從第幾筆開始（1-based）。tcl 為預設彙整館，搜得到全台書。
+const CLOUD_API = 'https://www.ebookservice.tw/api/1.00';
+
+async function cloudSearch(query, size = 30, offset = 1) {
+  const url = `${CLOUD_API}/search/web/tcl/0/${size}/${offset}?q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Accept-Language': 'zh-TW,zh;q=0.9',
+    },
+  });
+  if (!res.ok) throw new Error(`雲端書庫 HTTP ${res.status}`);
+  const data = await res.json();
+
+  const found = data?.payload?.hits?.found || 0;
+  const hits = data?.payload?.hits?.hit || [];
+
+  const books = hits.map(h => {
+    const f = h.fields || {};
+    // sites 陣列 = 有此書的縣市館（含重複與 "0"，去重去零後即館數）
+    const siteSet = new Set((f.sites || []).filter(s => s && s !== '0'));
+    return {
+      id: f.id || h.id,
+      title: f.title || '',
+      creators: Array.isArray(f.creators) ? f.creators.join('、') : (f.creators || ''),
+      publisher: f.publisher || '',
+      year: f.year || '',
+      thumbnail: h.coverImageUrl?.medium || h.coverImageUrl?.small || '',
+      siteCount: siteSet.size,
+      // 詳情頁：導到臺灣雲端書庫該書
+      detailUrl: `https://www.ebookservice.tw/#/book/tcl/${f.id || h.id}`,
+    };
+  });
+
+  return { query, found, books };
+}
+
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const kv = context.env.LIBRARY_CACHE || null;
@@ -484,6 +529,12 @@ export async function onRequest(context) {
         libCount: libs.length,
         results: summary,
       });
+
+    } else if (action === 'cloud-search' && query) {
+      // 臺灣雲端書庫跨館搜尋（HyRead 搜尋頁被 Cloudflare 擋後的替代源）
+      // 回傳每本書 + siteCount（全台幾個縣市館有此書）
+      const result = await cloudSearch(query, 30, 1);
+      return jsonResponse({ source: '臺灣雲端書庫', ...result });
 
     } else if (action === 'search' && query) {
       // 搜尋 HyRead 書店（靜態 HTML，能抓到結果）— 舊版相容
