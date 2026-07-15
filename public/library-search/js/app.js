@@ -181,8 +181,8 @@ async function searchBooks() {
   document.getElementById('lib-search-result').classList.add('hidden');
 
   try {
-    // 臺灣雲端書庫跨館搜尋：一次查全台，每本書自帶「幾個縣市館可借」
-    const res = await fetchAPI({ action: 'cloud-search', q: query });
+    // 臺灣雲端書庫跨館搜尋：用目前選的縣市館搜（跟熱門/新書一致，避免彙整館漏書）
+    const res = await fetchAPI({ action: 'cloud-search', q: query, lib: currentLib });
     renderCloudSearchResult(query, res);
   } catch (err) {
     showToast('搜尋失敗：' + err.message);

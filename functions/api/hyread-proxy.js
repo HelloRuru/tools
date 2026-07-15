@@ -345,9 +345,14 @@ async function cloudTopBooks(lib) {
 // 雲端書庫的搜尋是「全文內文比對」不是書名比對，搜特定書名常混進一堆內文命中的雜書、
 // 甚至書名命中的排很後面。所以這裡多抓一批（POOL）再自己重排：書名命中的浮到最前面。
 // 若整批都沒有書名命中，回傳 titleMatched=false，讓前端誠實提示「可能沒收這本」。
+//
+// ⚠️ 重要：一定要用「真實縣市館」搜（tpe/tc/ks…），不能用 tcl 彙整館。
+// tcl 的書庫範圍比縣市館小很多，很多書（如熱門榜上的書）在 tcl 搜不到，
+// 造成「熱門榜看得到、搜尋卻找不到」的矛盾。各縣市館書庫幾乎一致，用哪個都行。
 const CLOUD_SEARCH_POOL = 50; // 撈這麼多來重排
-async function cloudSearch(query, size = 30) {
-  const url = `${CLOUD_API}/search/web/tcl/0/${CLOUD_SEARCH_POOL}/1?q=${encodeURIComponent(query)}`;
+async function cloudSearch(query, lib = 'tpe', size = 30) {
+  const searchLib = CLOUD_LIBRARIES[lib] ? lib : 'tpe';
+  const url = `${CLOUD_API}/search/web/${searchLib}/0/${CLOUD_SEARCH_POOL}/1?q=${encodeURIComponent(query)}`;
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -576,7 +581,8 @@ export async function onRequest(context) {
     } else if (action === 'cloud-search' && query) {
       // 臺灣雲端書庫跨館搜尋（HyRead 搜尋頁被 Cloudflare 擋後的替代源）
       // 回傳每本書 + siteCount（全台幾個縣市館有此書）
-      const result = await cloudSearch(query, 30);
+      // 用使用者選的縣市館搜（跟熱門/新書一致），沒帶就預設臺北
+      const result = await cloudSearch(query, lib || 'tpe', 30);
       return jsonResponse({ source: '臺灣雲端書庫', ...result });
 
     } else if (action === 'search' && query) {
