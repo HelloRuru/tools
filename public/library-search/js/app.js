@@ -365,7 +365,7 @@ function renderBooks() {
     const a = document.createElement('a');
     a.className = 'book-card';
     // 新書 / 熱門都來自臺灣雲端書庫，後端已回傳 detailUrl
-    a.href = book.detailUrl || `https://www.ebookservice.tw/#/book/tcl/${book.id}`;
+    a.href = book.detailUrl || `https://www.ebookservice.tw/${currentLib}/search/?q=${encodeURIComponent(book.title)}`;
     a.target = '_blank';
     a.rel = 'noopener';
 

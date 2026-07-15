@@ -308,13 +308,23 @@ const CLOUD_LIBRARIES = {
   km:   '金門縣', ntl2: '國立臺灣圖書館',
 };
 
+// 產生雲端書庫「帶館的搜尋頁」連結。
+// 為什麼不直接連書頁（/book?site=&id=）：雲端書庫的書頁一定要先選館/登入才看得到，
+// 直接帶連結進去會卡在「請選擇圖書館」空白畫面。改連 /{館}/search/?q={書名}，
+// 帶著使用者選的縣市館 + 書名，落地就看得到那本書、能自己點進去借。
+function cloudBookLink(lib, title) {
+  const site = CLOUD_LIBRARIES[lib] ? lib : 'tpe';
+  return `https://www.ebookservice.tw/${site}/search/?q=${encodeURIComponent(title)}`;
+}
+
 // 統一把雲端書庫的 book 物件轉成前端要的格式
-function mapCloudBook(b) {
+function mapCloudBook(b, lib = 'tpe') {
+  const title = decodeEntities(b.title || '');
   return {
     id: b.bookId || b.id,
-    title: decodeEntities(b.title || ''),
+    title,
     thumbnail: b.coverImageUrl?.medium || b.coverImageUrl?.small || '',
-    detailUrl: `https://www.ebookservice.tw/#/book/tcl/${b.bookId || b.id}`,
+    detailUrl: cloudBookLink(lib, title),
   };
 }
 
@@ -333,13 +343,13 @@ async function cloudFetch(path) {
 // 新書上架：/new-arrival/web/{館}/book
 async function cloudNewBooks(lib) {
   const data = await cloudFetch(`/new-arrival/web/${lib}/book`);
-  return (data?.payload?.books || []).map(mapCloudBook);
+  return (data?.payload?.books || []).map(b => mapCloudBook(b, lib));
 }
 
 // 熱門借閱：/popular/web/{館}/book/weekly（tcl 彙整館無熱門資料，各縣市館才有）
 async function cloudTopBooks(lib) {
   const data = await cloudFetch(`/popular/web/${lib}/book/weekly`);
-  return (data?.payload?.books || []).map((b, i) => ({ rank: i + 1, ...mapCloudBook(b) }));
+  return (data?.payload?.books || []).map((b, i) => ({ rank: i + 1, ...mapCloudBook(b, lib) }));
 }
 
 // 雲端書庫的搜尋是「全文內文比對」不是書名比對，搜特定書名常混進一堆內文命中的雜書、
@@ -370,16 +380,17 @@ async function cloudSearch(query, lib = 'tpe', size = 30) {
     const f = h.fields || {};
     // sites 陣列 = 有此書的縣市館（含重複與 "0"，去重去零後即館數）
     const siteSet = new Set((f.sites || []).filter(s => s && s !== '0'));
+    const title = decodeEntities(f.title || '');
     return {
       id: f.id || h.id,
-      title: decodeEntities(f.title || ''),
+      title,
       creators: decodeEntities(Array.isArray(f.creators) ? f.creators.join('、') : (f.creators || '')),
       publisher: decodeEntities(f.publisher || ''),
       year: f.year || '',
       thumbnail: h.coverImageUrl?.medium || h.coverImageUrl?.small || '',
       siteCount: siteSet.size,
-      // 詳情頁：導到臺灣雲端書庫該書
-      detailUrl: `https://www.ebookservice.tw/#/book/tcl/${f.id || h.id}`,
+      // 連到雲端書庫「帶館的搜尋頁」（直接連書頁會卡選館，見 cloudBookLink 註解）
+      detailUrl: cloudBookLink(searchLib, title),
     };
   });
 
