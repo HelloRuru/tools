@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "dev:vite": "vite",
-    "build:vite": "vite build"
+    "build:vite": "vite build",
+    "og:readmoo": "node scripts/render-readmoo-ap-og.mjs"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",

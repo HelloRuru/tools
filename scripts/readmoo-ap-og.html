@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>Readmoo AP OG Canvas</title>
+  <style>
+    @font-face {
+      font-family: "GenSenRounded";
+      src: url("https://lab.helloruru.com/fonts/GenSenRounded-Regular.woff2") format("woff2");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: "GenSenRounded";
+      src: url("https://lab.helloruru.com/fonts/GenSenRounded-Medium.woff2") format("woff2");
+      font-weight: 500;
+    }
+    @font-face {
+      font-family: "GenSenRounded";
+      src: url("https://lab.helloruru.com/fonts/GenSenRounded-Bold.woff2") format("woff2");
+      font-weight: 700;
+    }
+    html, body { margin: 0; background: #30282A; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="og" width="1200" height="630"></canvas>
+  <script>
+    const canvas = document.getElementById('og');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    function roundedRect(x, y, width, height, radius, fill, stroke = null, lineWidth = 1) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function text(value, x, y, size, weight, color, align = 'left') {
+      ctx.font = `${weight} ${size}px "GenSenRounded", sans-serif`;
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(value, x, y);
+    }
+
+    function drawArrow(x, y, color) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + 34);
+      ctx.lineTo(x + 12, y + 23);
+      ctx.moveTo(x, y + 34);
+      ctx.lineTo(x - 12, y + 23);
+      ctx.stroke();
+    }
+
+    function drawStep(number, y, title, detail, accent) {
+      roundedRect(738, y, 374, 104, 24, '#FFFFFF');
+      roundedRect(758, y + 22, 60, 60, 20, accent);
+      text(String(number).padStart(2, '0'), 788, y + 61, 19, 700, '#FFFFFF', 'center');
+      text(title, 842, y + 48, 24, 700, '#493A37');
+      text(detail, 842, y + 75, 15, 500, '#887976');
+    }
+
+    async function draw() {
+      await Promise.all([
+        document.fonts.load('400 20px GenSenRounded'),
+        document.fonts.load('500 20px GenSenRounded'),
+        document.fonts.load('700 72px GenSenRounded'),
+      ]);
+      await document.fonts.ready;
+
+      // 暖白紙張背景
+      const background = ctx.createLinearGradient(0, 0, W, H);
+      background.addColorStop(0, '#FFF9F7');
+      background.addColorStop(0.56, '#F7EFEE');
+      background.addColorStop(1, '#EFE8F3');
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, W, H);
+
+      // 右側品牌色塊
+      const panel = ctx.createLinearGradient(690, 40, 1160, 590);
+      panel.addColorStop(0, '#D4A5A5');
+      panel.addColorStop(1, '#B8A9C9');
+      roundedRect(680, 38, 480, 554, 48, panel);
+
+      // 背景手繪圓與線條
+      ctx.globalAlpha = 0.13;
+      ctx.fillStyle = '#E8A87C';
+      ctx.beginPath();
+      ctx.arc(88, 88, 118, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#D4A5A5';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(606, 520, 94, 0.22, 4.75);
+      ctx.stroke();
+
+      // 品牌標記
+      roundedRect(72, 62, 196, 42, 21, '#F1DEDE');
+      text('HelloRuru Tools', 170, 90, 17, 700, '#6D5954', 'center');
+
+      // 主標與說明
+      text('讀墨 AP', 72, 205, 76, 700, '#493A37');
+      text('接龍工具', 72, 296, 76, 700, '#493A37');
+      text('1500日挑戰社群專用', 74, 348, 26, 500, '#796864');
+
+      const titleGradient = ctx.createLinearGradient(72, 0, 564, 0);
+      titleGradient.addColorStop(0, '#D4A5A5');
+      titleGradient.addColorStop(1, '#B8A9C9');
+      roundedRect(72, 382, 492, 7, 4, titleGradient);
+
+      text('一本書配一個人的連結，輪流接龍。', 74, 443, 23, 500, '#594A47');
+      text('選連結  ·  排順序  ·  記書單', 74, 485, 20, 500, '#8C7772');
+
+      // 網址與小標
+      text('tools.helloruru.com/readmoo-ap', 74, 558, 17, 500, '#9C8883');
+      roundedRect(540, 527, 94, 38, 19, '#493A37');
+      text('免費使用', 587, 552, 15, 700, '#FFFFFF', 'center');
+
+      // 接龍卡片
+      ctx.save();
+      ctx.shadowColor = 'rgba(73, 58, 55, 0.16)';
+      ctx.shadowBlur = 22;
+      ctx.shadowOffsetY = 10;
+      drawStep(1, 82, '選一本書', '從想買書單挑一本', '#D4A5A5');
+      drawStep(2, 263, '配一個 AP', '每本書換下一位', '#B8A9C9');
+      drawStep(3, 444, '把下一棒接上', '輪流讓回饋被接住', '#E8A87C');
+      ctx.restore();
+
+      drawArrow(925, 193, 'rgba(255,255,255,0.88)');
+      drawArrow(925, 374, 'rgba(255,255,255,0.88)');
+
+      window.OG_READY = true;
+    }
+
+    draw().catch(error => {
+      window.OG_ERROR = error.message;
+      console.error(error);
+    });
+  </script>
+</body>
+</html>
