@@ -296,6 +296,52 @@ async function recordFirstSeen(kv, lib, books) {
 //   第三格 = 這次取幾筆、第四格 = 從第幾筆開始（1-based）。tcl 為預設彙整館，搜得到全台書。
 const CLOUD_API = 'https://www.ebookservice.tw/api/1.00';
 
+// 臺灣雲端書庫 24 縣市館（HyRead 搜尋頁被擋後，首頁新書/熱門也一起改用雲端書庫，
+// 因為 Cloudflare Pages Functions 打 HyRead 會被自家 bot 挑戰擋 403，改用不擋的雲端書庫）。
+// 依台灣地理由北到南排序，貼近使用者習慣。
+const CLOUD_LIBRARIES = {
+  kl:   '基隆市', tpe:  '臺北市', nt:   '新北市', ty:   '桃園市',
+  hc:   '新竹市', hcc:  '新竹縣', ml:   '苗栗縣', tc:   '臺中市',
+  chc:  '彰化縣', ntc:  '南投縣', ylc:  '雲林縣', cy:   '嘉義市',
+  cyc:  '嘉義縣', tn:   '臺南市', ks:   '高雄市', pt:   '屏東縣',
+  il:   '宜蘭縣', hl:   '花蓮縣', tt:   '臺東縣', ph:   '澎湖縣',
+  km:   '金門縣', ntl2: '國立臺灣圖書館',
+};
+
+// 統一把雲端書庫的 book 物件轉成前端要的格式
+function mapCloudBook(b) {
+  return {
+    id: b.bookId || b.id,
+    title: b.title || '',
+    thumbnail: b.coverImageUrl?.medium || b.coverImageUrl?.small || '',
+    detailUrl: `https://www.ebookservice.tw/#/book/tcl/${b.bookId || b.id}`,
+  };
+}
+
+async function cloudFetch(path) {
+  const res = await fetch(`${CLOUD_API}${path}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Accept-Language': 'zh-TW,zh;q=0.9',
+    },
+  });
+  if (!res.ok) throw new Error(`雲端書庫 HTTP ${res.status}`);
+  return await res.json();
+}
+
+// 新書上架：/new-arrival/web/{館}/book
+async function cloudNewBooks(lib) {
+  const data = await cloudFetch(`/new-arrival/web/${lib}/book`);
+  return (data?.payload?.books || []).map(mapCloudBook);
+}
+
+// 熱門借閱：/popular/web/{館}/book/weekly（tcl 彙整館無熱門資料，各縣市館才有）
+async function cloudTopBooks(lib) {
+  const data = await cloudFetch(`/popular/web/${lib}/book/weekly`);
+  return (data?.payload?.books || []).map((b, i) => ({ rank: i + 1, ...mapCloudBook(b) }));
+}
+
 async function cloudSearch(query, size = 30, offset = 1) {
   const url = `${CLOUD_API}/search/web/tcl/0/${size}/${offset}?q=${encodeURIComponent(query)}`;
   const res = await fetch(url, {
@@ -343,55 +389,31 @@ export async function onRequest(context) {
   const lib = url.searchParams.get('lib');
   const query = url.searchParams.get('q');
 
-  // 回傳圖書館列表
+  // 回傳圖書館列表（改用雲端書庫的 24 縣市館）
   if (action === 'libraries') {
-    return jsonResponse({ libraries: LIBRARIES });
+    return jsonResponse({ libraries: CLOUD_LIBRARIES });
   }
 
-  // 驗證圖書館代碼
-  if (lib && !LIBRARIES[lib]) {
+  // 驗證圖書館代碼（HyRead 系列 action 用 HyRead 館碼，雲端系列用雲端館碼；分別驗）
+  const isHyReadAction = ['lib-search', 'lib-search-cross', 'free-hits'].includes(action);
+  if (lib && isHyReadAction && !LIBRARIES[lib]) {
+    return jsonResponse({ error: '不支援的圖書館代碼' }, 400);
+  }
+  if (lib && !isHyReadAction && !CLOUD_LIBRARIES[lib]) {
     return jsonResponse({ error: '不支援的圖書館代碼' }, 400);
   }
 
   try {
     if (action === 'top' && lib) {
-      // 熱門排行
-      const html = await fetchHyRead(
-        `https://${lib}.ebook.hyread.com.tw/Template/RWD3.0/topLendBook.jsp`
-      );
-      const books = parseTopBooks(html);
-      return jsonResponse({ library: LIBRARIES[lib], books });
+      // 熱門借閱（雲端書庫，各縣市館週榜）
+      const books = await cloudTopBooks(lib);
+      return jsonResponse({ library: CLOUD_LIBRARIES[lib], books });
 
     } else if (action === 'new' && lib) {
-      // 計次新書上架（先抓第 1 頁取總頁數，再平行抓剩餘頁）
-      const baseUrl = `https://${lib}.ebook.hyread.com.tw/Template/RWD3.0/moccount-page.jsp`;
-      const firstHtml = await fetchHyRead(baseUrl);
-
-      // 從 HTML 取得總頁數（「共 N 頁」）
-      const totalMatch = firstHtml.match(/共\s*(\d+)\s*頁/);
-      const totalPages = totalMatch ? Math.min(parseInt(totalMatch[1], 10), 30) : 1;
-
-      const seenIds = new Set();
-      const books = [];
-      for (const b of parseNewBooks(firstHtml)) {
-        if (!seenIds.has(b.id)) { seenIds.add(b.id); books.push(b); }
-      }
-
-      if (totalPages > 1) {
-        const restUrls = [];
-        for (let p = 2; p <= totalPages; p++) {
-          restUrls.push(fetchHyRead(`${baseUrl}?nowpage=${p}`));
-        }
-        const restPages = await Promise.all(restUrls);
-        for (const pageHtml of restPages) {
-          for (const b of parseNewBooks(pageHtml)) {
-            if (!seenIds.has(b.id)) { seenIds.add(b.id); books.push(b); }
-          }
-        }
-      }
-
+      // 新書上架（雲端書庫）
+      const books = await cloudNewBooks(lib);
       await recordFirstSeen(kv, lib, books);
-      return jsonResponse({ library: LIBRARIES[lib], books });
+      return jsonResponse({ library: CLOUD_LIBRARIES[lib], books });
 
     } else if (action === 'bestseller') {
       // HyRead 書店暢銷榜（要花錢買的書）

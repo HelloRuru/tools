@@ -7,7 +7,7 @@ const API_BASE = '/api/hyread-proxy';
 // ══════════════════════════════════════════════════
 
 let currentTab = 'new';
-let currentLib = 'taichunggov';
+let currentLib = 'tc';
 let currentBooks = [];
 let sortAsc = true;
 let libraries = {};
@@ -30,16 +30,14 @@ async function loadLibraries() {
     libraries = data.libraries;
     populateLibrarySelect();
   } catch {
-    // 使用內建列表作為備用
+    // 使用內建列表作為備用（臺灣雲端書庫 24 縣市館，北到南）
     libraries = {
-      tpml: '臺北市立圖書館', tphcc: '新北市立圖書館', ntledu: '國立臺灣圖書館',
-      tycccgov: '桃園市立圖書館', hcmlgov: '新竹市圖書館', hchcc: '新竹縣公共圖書館',
-      miaolilib: '苗栗縣立圖書館', taichunggov: '臺中市立圖書館', cabcygov: '嘉義市政府文化局',
-      tnml: '臺南市立圖書館', ksml: '高雄市立圖書館', ilccb: '宜蘭縣政府文化局',
-      hccc: '花蓮縣文化局', cclttct: '臺東縣政府文化處', bocach: '南投縣公共圖書館',
-      ylccb: '雲林縣公共圖書館', chcedu: '彰化雲端電子書庫', pthggov: '屏東縣公共圖書館',
-      klccab: '基隆市文化局', ncl: '國家圖書館',
-      kinmen: '金門縣文化局', phhcc: '澎湖縣圖書館', matsucc: '連江縣公共圖書館',
+      kl: '基隆市', tpe: '臺北市', nt: '新北市', ty: '桃園市',
+      hc: '新竹市', hcc: '新竹縣', ml: '苗栗縣', tc: '臺中市',
+      chc: '彰化縣', ntc: '南投縣', ylc: '雲林縣', cy: '嘉義市',
+      cyc: '嘉義縣', tn: '臺南市', ks: '高雄市', pt: '屏東縣',
+      il: '宜蘭縣', hl: '花蓮縣', tt: '臺東縣', ph: '澎湖縣',
+      km: '金門縣', ntl2: '國立臺灣圖書館',
     };
     populateLibrarySelect();
   }
@@ -90,17 +88,13 @@ function switchTab(tab) {
     libSearchResult.classList.add('hidden');
   }
 
-  // 計次新書提示 + 圖書館選擇器顯隱
+  // 新書 / 熱門都來自雲端書庫、依縣市館，兩個 Tab 都顯示館別選擇器
   const mocHint = document.getElementById('moc-hint');
   if (mocHint) mocHint.style.display = tab === 'new' ? '' : 'none';
   const libSelector = document.getElementById('lib-selector');
-  if (libSelector) libSelector.style.display = tab === 'new' ? 'none' : '';
+  if (libSelector) libSelector.style.display = '';
 
-  if (tab === 'free-hits') {
-    loadFreeHits();
-  } else {
-    loadBooks();
-  }
+  loadBooks();
 }
 
 // ══════════════════════════════════════════════════
@@ -363,10 +357,8 @@ function renderBooks() {
   for (const book of display) {
     const a = document.createElement('a');
     a.className = 'book-card';
-    // 搜尋結果連到 HyRead 書店主站（圖書館子站不一定有這本書，會 404）
-    // 計次新書 / 熱門 Top 100 才連到圖書館子站
-    const host = isSearchMode ? 'ebook.hyread.com.tw' : `${currentLib}.ebook.hyread.com.tw`;
-    a.href = `https://${host}/bookDetail.jsp?id=${book.id}`;
+    // 新書 / 熱門都來自臺灣雲端書庫，後端已回傳 detailUrl
+    a.href = book.detailUrl || `https://www.ebookservice.tw/#/book/tcl/${book.id}`;
     a.target = '_blank';
     a.rel = 'noopener';
 
@@ -557,11 +549,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
-  // 初始載入（預設 Tab 是計次新書，顯示提示、隱藏圖書館選擇器）
+  // 初始載入（預設 Tab 是最新上架，顯示提示 + 圖書館選擇器）
   const mocHint = document.getElementById('moc-hint');
   if (mocHint) mocHint.style.display = '';
   const libSelector = document.getElementById('lib-selector');
-  if (libSelector) libSelector.style.display = 'none';
+  if (libSelector) libSelector.style.display = '';
   lucide.createIcons();
   loadBooks();
 });
