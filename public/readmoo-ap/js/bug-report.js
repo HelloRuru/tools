@@ -5,33 +5,93 @@
   if (window.ReadmooBugReport) return;
 
   const MAX_ERRORS = 20;
+  const ALLOWED_ERROR_SOURCES = new Set([
+    'bug-report.min.js', 'app.min.js', 'quiz.min.js',
+    'ap-directory.min.js', 'ap-chain.min.js', 'books.min.js',
+    'changelog.min.js', 'export-utils.min.js', 'readmoo-search.min.js',
+    'ap-log.min.js', 'deals.js', 'coupon.js', 'recommend.js',
+    'lucide.min.js', 'xlsx.full.min.js', 'brand-header.js',
+    'ohruru-recommend.js',
+  ]);
   const recentErrors = [];
 
   function sanitizeText(value, maxLength = 600) {
     return String(value || '')
+      .replace(/((?:訂單(?:編號|末碼)?|AP)\s*(?:[:：]|為|是)?\s*)[*#＊＃]?\s*\d{2,}/gi, '$1[末碼已隱藏]')
+      .replace(/([*#＊＃])\s*\d{2,}/g, '$1[末碼已隱藏]')
       .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[電子郵件已隱藏]')
-      .replace(/https?:\/\/[^\s)\]}>'"]+/gi, '[網址已隱藏]')
-      .replace(/([*#])\s*\d{2,6}/g, '$1[末碼已隱藏]')
+      .replace(/https?:\/\/[^\s)\]}>'"，。；、]+/gi, '[網址已隱藏]')
       .replace(/`/g, "'")
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
       .trim()
       .slice(0, maxLength);
   }
 
-  function recordError(type, message, source, line, column) {
+  function summarizeError(message) {
+    const text = String(message || '');
+    const safeMessages = new Set([
+      '請求已中止',
+      '網路請求失敗',
+      '請求逾時',
+      'JavaScript 語法錯誤',
+      'JavaScript 型別錯誤',
+      'JavaScript 參照錯誤',
+      '錯誤內容已隱藏',
+    ]);
+    if (safeMessages.has(text)) return text;
+    if (/abort|中止/i.test(text)) return '請求已中止';
+    if (/failed to fetch|network|網路/i.test(text)) return '網路請求失敗';
+    if (/timeout|逾時/i.test(text)) return '請求逾時';
+    if (/syntaxerror|syntax error|語法/i.test(text)) return 'JavaScript 語法錯誤';
+    if (/typeerror/i.test(text)) return 'JavaScript 型別錯誤';
+    if (/referenceerror/i.test(text)) return 'JavaScript 參照錯誤';
+    return '錯誤內容已隱藏';
+  }
+
+  function safeSource(source) {
+    if (!source) return '';
+    try {
+      const filename = new URL(source, window.location.origin).pathname.split('/').pop();
+      return ALLOWED_ERROR_SOURCES.has(filename) ? filename : '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function safeErrorType(type) {
+    const safeTypes = new Set(['JavaScript', 'Promise', 'BUG 報告']);
+    return safeTypes.has(type) ? type : 'JavaScript';
+  }
+
+  function safeLine(line) {
+    return Number.isInteger(line) && line > 0 && line <= 10000 ? line : null;
+  }
+
+  function safeTime(time) {
+    const value = String(time || '');
+    return /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(value) ? value : '--:--:--';
+  }
+
+  function currentTime() {
+    const now = new Date();
+    return [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map(value => String(value).padStart(2, '0'))
+      .join(':');
+  }
+
+  function recordError(type, message, source, line) {
     recentErrors.push({
-      time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
-      type,
-      message: sanitizeText(message || '未知錯誤'),
-      source: source ? sanitizeText(String(source).split('/').pop(), 100) : '',
-      line: Number.isFinite(line) ? line : null,
-      column: Number.isFinite(column) ? column : null,
+      time: currentTime(),
+      type: safeErrorType(type),
+      message: summarizeError(message),
+      source: safeSource(source),
+      line: safeLine(line),
     });
     if (recentErrors.length > MAX_ERRORS) recentErrors.shift();
   }
 
   window.addEventListener('error', event => {
-    recordError('JavaScript', event.message, event.filename, event.lineno, event.colno);
+    recordError('JavaScript', event.message, event.filename, event.lineno);
   });
 
   window.addEventListener('unhandledrejection', event => {
@@ -50,32 +110,28 @@
     return '其他瀏覽器';
   }
 
-  function readArrayCount(key) {
-    try {
-      const value = JSON.parse(localStorage.getItem(key) || '[]');
-      return Array.isArray(value) ? value.length : 0;
-    } catch (error) {
-      return '資料損壞';
-    }
-  }
-
   function collectStorageSummary() {
     try {
       const probeKey = '__readmoo_bug_report_probe__';
       localStorage.setItem(probeKey, '1');
       localStorage.removeItem(probeKey);
+      const keys = new Set(
+        Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean)
+      );
       return {
         available: true,
-        books: readArrayCount('readmoo-ap-books'),
-        apLog: readArrayCount('readmoo-ap-log'),
-        identityConfigured: Boolean(localStorage.getItem('readmoo-ap-user')),
-        chainStateConfigured: Boolean(localStorage.getItem('readmoo-ap-chain-state')),
+        totalEntries: keys.size,
+        booksConfigured: keys.has('readmoo-ap-books'),
+        apLogConfigured: keys.has('readmoo-ap-log'),
+        identityConfigured: keys.has('readmoo-ap-user'),
+        chainStateConfigured: keys.has('readmoo-ap-chain-state'),
       };
     } catch (error) {
       return {
         available: false,
-        books: '無法讀取',
-        apLog: '無法讀取',
+        totalEntries: '無法讀取',
+        booksConfigured: false,
+        apLogConfigured: false,
         identityConfigured: false,
         chainStateConfigured: false,
       };
@@ -108,7 +164,7 @@
       });
       return `HTTP ${response.status} ${Math.round(performance.now() - startedAt)}ms`;
     } catch (error) {
-      const name = error.name === 'AbortError' ? 'TIMEOUT' : sanitizeText(error.message, 80);
+      const name = error.name === 'AbortError' ? 'TIMEOUT' : summarizeError(error.message);
       return `FAIL ${name} ${Math.round(performance.now() - startedAt)}ms`;
     } finally {
       clearTimeout(timeout);
@@ -143,10 +199,12 @@
     const safeDescription = sanitizeText(description, 1000) || '未填寫';
     const errors = Array.isArray(diag.errors) && diag.errors.length > 0
       ? diag.errors.map(error => {
-          const location = error.source
-            ? ` (${sanitizeText(error.source, 100)}${error.line ? `:${error.line}` : ''}${error.column ? `:${error.column}` : ''})`
+          const source = safeSource(error.source);
+          const line = safeLine(error.line);
+          const location = source
+            ? ` (${source}${line ? `:${line}` : ''})`
             : '';
-          return `- ${sanitizeText(error.time, 30)} [${sanitizeText(error.type, 30)}] ${sanitizeText(error.message)}${location}`;
+          return `- ${safeTime(error.time)} [${safeErrorType(error.type)}] ${summarizeError(error.message)}${location}`;
         }).join('\n')
       : '- 未捕捉到 JavaScript 錯誤';
     const versions = Array.isArray(diag.versions) && diag.versions.length > 0
@@ -185,8 +243,9 @@ ${versions}
 ## 本機資料摘要
 
 - LocalStorage：${diag.storage?.available ? '可用' : '無法使用'}
-- 書單筆數：${sanitizeText(diag.storage?.books, 30)}
-- AP 紀錄筆數：${sanitizeText(diag.storage?.apLog, 30)}
+- 本機儲存項目數：${sanitizeText(diag.storage?.totalEntries, 30)}
+- 有書單資料：${diag.storage?.booksConfigured ? '是' : '否'}
+- 有 AP 紀錄：${diag.storage?.apLogConfigured ? '是' : '否'}
 - 已設定身分：${diag.storage?.identityConfigured ? '是' : '否'}
 - 有接龍暫存：${diag.storage?.chainStateConfigured ? '是' : '否'}
 
