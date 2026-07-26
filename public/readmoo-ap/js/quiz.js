@@ -100,6 +100,7 @@ function initQuiz() {
 
   // Close modal resets
   document.getElementById('quiz-modal-close').addEventListener('click', () => {
+    closeModal('quiz-modal');
     resetModal();
     AppState._identityOnly = false;
   });
