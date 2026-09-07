@@ -8,7 +8,7 @@ const categories = [
   { id: 'text', label: '文字 & 轉檔', desc: '小說轉檔 · 社群排版 · AI 提示詞' },
   { id: 'media', label: '圖片 & 多媒體', desc: '去背 · PDF · 卡片 · 問安圖 · 色票 · 歌詞 · 歌單' },
   { id: 'discover', label: '查詢 & 測驗', desc: '閱讀器推薦 · 美妝色號' },
-  { id: 'reading', label: '閱讀 & 電子書', desc: '書櫃管理 · AP 串接 · 圖書館新書' },
+  { id: 'reading', label: '閱讀 & 電子書', desc: '書櫃管理 · 圖書館新書' },
 ]
 
 // ── Tools ──────────────────────────────────────────
@@ -83,11 +83,6 @@ const tools = [
     id: 'book-manager', name: '電子書書櫃管理', category: 'reading',
     description: '登入讀墨、Kobo，一鍵撈出全部藏書，跨平台自動比對重複書籍，匯出 CSV。',
     path: '/book-manager/', color: 'lavender', external: true,
-  },
-  {
-    id: 'readmoo-ap', name: '讀墨 AP 串串樂', category: 'reading',
-    description: '讀墨 1500 日挑戰 LINE 群專用。輸入 AP 連結，自動產生串接推薦文案。',
-    path: '/readmoo-ap/', color: 'sage', external: true,
   },
   {
     id: 'ebook-deals', name: '每日好書推薦', category: 'reading',
@@ -286,7 +281,6 @@ const getIcon = (id) => {
     case 'lyric-player': return <MusicIcon />
     case 'spotify-goods': return <MusicIcon />
     case 'book-manager': return <BookOpenIcon />
-    case 'readmoo-ap': return <BookIcon />
     case 'ebook-deals': return <BookIcon />
     case 'library-search': return <BookOpenIcon />
     case 'labor-report': return <PdfEditIcon />
