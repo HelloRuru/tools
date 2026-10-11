@@ -1600,9 +1600,7 @@
 
     // === Helpers ===
     function escapeHtml(str) {
-      const d = document.createElement('div');
-      d.textContent = str || '';
-      return d.innerHTML;
+      return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
     }
     function formatDate(dateStr) {
       if (!dateStr) return '';
@@ -1703,9 +1701,13 @@
         envelope.lastSuccessfulAt !== undefined ? envelope.lastSuccessfulAt : envelope.updatedAt,
         now, isThirdParty ? 0 : SOURCE_CLOCK_SKEW_MS);
       const sourceTimes = [sourceUpdatedTimestamp, observedTimestamp, lastSuccessfulTimestamp];
-      const sourceTimestamp = isThirdParty
+      let sourceTimestamp = isThirdParty
         ? (sourceTimes.every(timestamp => timestamp !== null) ? Math.min(...sourceTimes) : null)
         : lastSuccessfulTimestamp;
+      if (!isThirdParty && envelope.source === 'manual-official' && envelope.observedAt !== undefined) {
+        const observed = validSourceTimestamp(envelope.observedAt, now);
+        sourceTimestamp = observed !== null && sourceTimestamp !== null ? Math.min(observed, sourceTimestamp) : null;
+      }
       const collectedTimestamp = isThirdParty ? validSourceTimestamp(envelope.collectedAt, now, 0) : null;
       const invalidThirdPartyTime = isThirdParty && (sourceTimestamp === null || collectedTimestamp === null);
       const freshnessMs = isThirdParty ? BOOKS_THIRD_PARTY_FRESHNESS_MS : SOURCE_FRESHNESS_MS;
@@ -1714,9 +1716,9 @@
       // Never revive an old row just because the dataset timestamp has advanced.
       const deals = isThirdParty ? validDeals.filter(deal => {
         const rowTimestamp = validSourceTimestamp(deal.sourceObservedAt, now, 0);
-        return isFresh && deal.date >= today && deal.promotionEnd >= today &&
+        return isFresh && Number.isFinite(deal.dealPrice) && deal.dealPrice > 0 && deal.date >= today && deal.promotionEnd >= today &&
           rowTimestamp !== null && now.getTime() - rowTimestamp <= BOOKS_THIRD_PARTY_FRESHNESS_MS;
-      }) : validDeals.filter(deal => isFresh && deal.date >= today && Number.isFinite(deal.dealPrice) && deal.dealPrice >= 0 && (!deal.promotionEnd || (isDealDate(deal.promotionEnd) && deal.promotionEnd >= deal.date)) && (!deal.promotionStart || (isDealDate(deal.promotionStart) && deal.promotionStart <= deal.date)));
+      }) : validDeals.filter(deal => isFresh && deal.date >= today && Number.isFinite(deal.dealPrice) && (deal.platform === 'books' || envelope.source === 'manual-official' ? deal.dealPrice > 0 : deal.dealPrice >= 0) && (!deal.promotionEnd || (isDealDate(deal.promotionEnd) && deal.promotionEnd >= deal.date)) && (!deal.promotionStart || (isDealDate(deal.promotionStart) && deal.promotionStart <= deal.date)));
       const sourceDate = sourceTimestamp === null ? null : taipeiDateKey(new Date(sourceTimestamp));
       const emptyConfirmedToday = envelope.confirmedEmptyDate === today || sourceDate === today;
       const hasToday = deals.some(deal => deal.date === today);
@@ -1831,7 +1833,7 @@
         document.getElementById('grid-' + p).innerHTML =
           '<div class="shimmer-card"><div class="shimmer-block shimmer-cover"></div><div class="shimmer-content"><div class="shimmer-block shimmer-title"></div><div class="shimmer-block shimmer-price"></div></div></div>';
       }
-      await fetchDeals('/api/refresh');
+      await fetchDeals('/api/deals');
       btn.disabled = false;
       btn.textContent = '\u91CD\u65B0\u6574\u7406';
     });
@@ -1983,87 +1985,81 @@
             calHeader.innerHTML = '<span>活動期間<br>' + rangeLabel + '<br>' + showDeals.length + ' 本</span>';
           }
           grid.style.gridTemplateColumns = `repeat(${showDeals.length}, 1fr)`;
-          grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)).join('');
+          grid.replaceChildren(...showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)));
         } else {
           renderCalendarHeader(showDeals, today, 'cal-header-' + platform, 'grid-' + platform);
-          grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)).join('');
+          grid.replaceChildren(...showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)));
         }
       }
     }
 
+    function safeCoverOrProductUrl(value) {
+      try {
+        const u = new URL(value);
+        return u.protocol === 'https:' && !u.username && !u.password ? u.href : '';
+      } catch { return ''; }
+    }
+
     function renderDealCard(deal, today, sourceEnvelope = {}, now = new Date()) {
-      const p = deal.platform || '';
-      const isToday = deal.date === today;
-      const isPast = deal.date < today;
-      const disc = deal.originalPrice > 0
-        ? Math.round((1 - deal.dealPrice / deal.originalPrice) * 100) : 0;
-
+      const make = (tag, className, value) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (value !== undefined) node.textContent = String(value);
+        return node;
+      };
+      const p = deal.platform || '', isToday = deal.date === today, isPast = deal.date < today;
       const displayTitle = deal.title || '預告書（點封面看書名）';
-      const placeholderText = deal.title ? deal.title.slice(0, 8) : '預告';
-      const cover = deal.coverUrl
-        ? '<img src="' + escapeHtml(deal.coverUrl) + '" alt="' + escapeHtml(displayTitle) + '" loading="lazy" onerror="this.outerHTML=\'<div class=book-cover-placeholder>' + escapeHtml(placeholderText) + '</div>\'">'
-        : '<div class="book-cover-placeholder">' + escapeHtml(placeholderText) + '</div>';
-
-      const gcalUrl = isPast ? '' : buildGCalUrl(deal, sourceEnvelope, now);
-      const appleUrl = isPast ? '' : buildAppleIcsUrl(deal);
-      const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>';
-      const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="cal-chevron"><polyline points="6 9 12 15 18 9"/></svg>';
-      const calMenu = (gcalUrl || appleUrl)
-        ? '<div class="cal-menu-wrap">' +
-            '<button type="button" class="deal-cal" aria-haspopup="true" aria-expanded="false" title="加日曆">' +
-              calIcon + '加日曆' + chevron +
-            '</button>' +
-            '<div class="cal-menu" role="menu">' +
-              (gcalUrl ? '<a href="' + gcalUrl + '" target="_blank" rel="noopener" role="menuitem">Google 日曆</a>' : '') +
-              (appleUrl ? '<a href="' + appleUrl + '" role="menuitem" data-apple>Apple 日曆 / iPhone</a>' : '') +
-            '</div>' +
-          '</div>'
-        : '';
-
-      // 促銷類型標籤
-      // - Pubu: promoMessage 已寫「每日精選」/「限時 99 最後一天」
-      // - HyRead: promoMessage 寫「週末快閃 99」
-      // - Readmoo: 統一「每日 99」
-      // - 博客來: 用 dealType（99元/66元/...）
-      // - Kobo: 用 dealType（每日99）
+      const article = make('article', 'deal-card' + (isToday ? ' is-today' : isPast ? ' is-past' : ''));
+      article.setAttribute('data-platform', p);
+      const wrap = make('div', 'book-cover-wrap'), cover = make('div', 'book-cover');
+      const fallback = () => make('div', 'book-cover-placeholder', deal.title ? deal.title.slice(0, 8) : '預告');
+      const coverUrl = safeCoverOrProductUrl(deal.coverUrl);
+      if (coverUrl) {
+        const img = make('img');
+        img.setAttribute('alt', displayTitle);
+        img.setAttribute('loading', 'lazy');
+        img.addEventListener('error', () => cover.replaceChildren(fallback()), { once: true });
+        img.setAttribute('src', coverUrl);
+        cover.append(img);
+      } else cover.append(fallback());
+      wrap.append(cover); article.append(wrap);
+      const info = make('div', 'deal-info');
       let promoLabel = deal.promoMessage || '';
       if (!promoLabel) {
-        if (deal.platform === 'readmoo') promoLabel = '每日特惠';
-        else if (deal.platform === 'books') promoLabel = deal.dealType || '每日限時搶';
-        else if (deal.platform === 'kobo') promoLabel = sourceEnvelope.source === KOBO_WEEKLY_SOURCE ? '第三方單日公告 ' : '每週 99 選書';
+        if (p === 'readmoo') promoLabel = '每日特惠';
+        else if (p === 'books') promoLabel = deal.dealType || '每日限時搶';
+        else if (p === 'kobo') promoLabel = sourceEnvelope.source === KOBO_WEEKLY_SOURCE ? '第三方單日公告' : '每週 99 選書';
       }
-      // Pubu「限時 99 最後一天」→ 直接帶日期：「5/4 到期 $99」
-      if (deal.platform === 'pubu' && (deal.reminderType === 'last-day' || promoLabel === '限時 99 最後一天') && deal.date) {
-        const dt = new Date(deal.date + 'T00:00:00');
-        promoLabel = (dt.getMonth() + 1) + '/' + dt.getDate() + ' 到期 $' + deal.dealPrice;
+      if (p === 'pubu' && (deal.reminderType === 'last-day' || promoLabel === '限時 99 最後一天') && deal.date) {
+        const date = new Date(deal.date + 'T00:00:00');
+        promoLabel = (date.getMonth() + 1) + '/' + date.getDate() + ' 到期 $' + deal.dealPrice;
       }
-
-      let promoTag = '';
-      if (promoLabel) {
-        let tagClass = 'promo-tag';
-        if (/限時.*99|即將下架/.test(promoLabel)) tagClass += ' promo-flash';
-        else if (/週末快閃/.test(promoLabel)) tagClass += ' promo-weekend';
-        else tagClass += ' promo-daily';
-        promoTag = '<span class="' + tagClass + '">' + escapeHtml(promoLabel) + '</span>';
+      if (promoLabel) info.append(make('span', 'promo-tag ' + (/限時.*99|即將下架/.test(promoLabel) ? 'promo-flash' : /週末快閃/.test(promoLabel) ? 'promo-weekend' : 'promo-daily'), promoLabel));
+      info.append(make('h3', 'deal-title' + (deal.title ? '' : ' is-placeholder'), displayTitle));
+      if (deal.author) info.append(make('p', 'deal-author', deal.author));
+      const pricing = make('div', 'deal-pricing');
+      pricing.append(make('span', 'price-deal', '$' + deal.dealPrice));
+      if (deal.originalPrice > 0) pricing.append(make('span', 'price-original', '$' + deal.originalPrice));
+      info.append(pricing);
+      const actions = make('div', 'deal-actions'), productUrl = safeCoverOrProductUrl(deal.bookUrl);
+      if (productUrl) {
+        const buy = make('a', 'deal-link', '前往購買');
+        buy.setAttribute('href', productUrl); buy.setAttribute('target', '_blank'); buy.setAttribute('rel', 'noopener');
+        actions.append(buy);
       }
-
-      return '<article class="deal-card' + (isToday ? ' is-today' : isPast ? ' is-past' : '') + '" data-platform="' + p + '">' +
-        '<div class="book-cover-wrap"><div class="book-cover">' + cover + '</div></div>' +
-        '<div class="deal-info">' +
-          (promoTag ? promoTag : '') +
-          '<h3 class="deal-title' + (deal.title ? '' : ' is-placeholder') + '">' + escapeHtml(displayTitle) + '</h3>' +
-          (deal.author ? '<p class="deal-author">' + escapeHtml(deal.author) + '</p>' : '') +
-          '<div class="deal-pricing">' +
-            '<span class="price-deal">$' + deal.dealPrice + '</span>' +
-            (deal.originalPrice > 0 ? '<span class="price-original">$' + deal.originalPrice + '</span>' : '') +
-          '</div>' +
-          '<div class="deal-actions">' +
-            '<a href="' + escapeHtml(deal.bookUrl) + '" class="deal-link" target="_blank" rel="noopener">' +
-              '前往購買 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
-            '</a>' +
-            calMenu +
-          '</div>' +
-        '</div></article>';
+      if (!isPast && productUrl) {
+        const calWrap = make('div', 'cal-menu-wrap'), button = make('button', 'deal-cal', '加日曆 ▾');
+        button.setAttribute('type', 'button'); button.setAttribute('aria-haspopup', 'true'); button.setAttribute('aria-expanded', 'false'); button.setAttribute('title', '加日曆');
+        const menu = make('div', 'cal-menu'); menu.setAttribute('role', 'menu');
+        for (const [label, href, apple] of [['Google 日曆', buildGCalUrl(deal, sourceEnvelope, now), false], ['Apple 日曆 / iPhone', buildAppleIcsUrl(deal), true]]) {
+          const link = make('a', '', label); link.setAttribute('href', href); link.setAttribute('role', 'menuitem');
+          if (apple) link.setAttribute('data-apple', '');
+          else { link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener'); }
+          menu.append(link);
+        }
+        calWrap.append(button, menu); actions.append(calWrap);
+      }
+      info.append(actions); article.append(info); return article;
     }
 
     // === Apple .ics URL Builder（單本書下載） ===
