@@ -291,6 +291,23 @@
       color: var(--text-hint);
       margin-left: 4px;
     }
+    .platform-updated {
+      display: block;
+      margin-top: 3px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .platform-source {
+      display: block;
+      margin: 6px 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+    .platform-source a { color: var(--text-primary); text-decoration: underline; }
+    .platform-source-caution { display: block; font-weight: 400; }
     /* 週曆容器 */
     .calendar-wrap {
       border: 1px solid var(--border-color);
@@ -1594,6 +1611,131 @@
       return `${d.getMonth() + 1}/${d.getDate()} (${weekdays[d.getDay()]})`;
     }
 
+    // === Source Freshness (pure helpers; also tested without a browser) ===
+    const SOURCE_FRESHNESS_MS = 48 * 60 * 60 * 1000;
+    const SOURCE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+    const BOOKS_THIRD_PARTY_SOURCE = 'kobo99-third-party';
+    const BOOKS_THIRD_PARTY_FRESHNESS_MS = 72 * 60 * 60 * 1000;
+    // Only this reviewed source is linked. Never interpolate sourceUrl from an API response.
+    const BOOKS_THIRD_PARTY_URL = 'https://github.com/kobo99tw/kobo99-tracker/blob/main/docs/data/theme_books_dailye99.json';
+    const BOOKS_THIRD_PARTY_CAUTION = '第三方整理，未逐筆核對官方當日價格；以博客來結帳頁為準';
+
+    function taipeiDateKey(now = new Date()) {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).formatToParts(now);
+      const part = (type) => parts.find(p => p.type === type).value;
+      return `${part('year')}-${part('month')}-${part('day')}`;
+    }
+
+    function isDealDate(value) {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const parsed = new Date(value + 'T00:00:00Z');
+      return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    }
+
+    function validSourceTimestamp(value, now = new Date(), clockSkewMs = SOURCE_CLOCK_SKEW_MS) {
+      // A date without a time zone is ambiguous. Reject invalid calendar dates too,
+      // since Date.parse alone silently rolls e.g. February 30 into March.
+      if (typeof value !== 'string' ||
+          !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value) ||
+          !isDealDate(value.slice(0, 10))) return null;
+      const timestamp = Date.parse(value);
+      if (!Number.isFinite(timestamp) || timestamp > now.getTime() + clockSkewMs) return null;
+      return timestamp;
+    }
+
+    function formatSourceTimestamp(timestamp) {
+      return new Date(timestamp).toLocaleString('zh-TW', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      }) + '（台灣時間）';
+    }
+
+    function formatSourceAge(timestamp, now = new Date()) {
+      const minutes = Math.max(0, Math.floor((now.getTime() - timestamp) / 60000));
+      return '距今 ' + Math.floor(minutes / 60) + ' 小時 ' + (minutes % 60) + ' 分鐘';
+    }
+
+    function derivePlatformState(envelope = {}, now = new Date()) {
+      envelope = envelope && typeof envelope === 'object' ? envelope : {};
+      const today = taipeiDateKey(now);
+      const rawDeals = Array.isArray(envelope.deals) ? envelope.deals : null;
+      const isThirdParty = envelope.source === BOOKS_THIRD_PARTY_SOURCE;
+      const datedDeals = (rawDeals || []).filter(deal => deal && isDealDate(deal.date));
+      const validDeals = isThirdParty ? datedDeals.filter(deal =>
+        isDealDate(deal.promotionStart) && isDealDate(deal.promotionEnd) &&
+        deal.promotionStart <= deal.date && deal.date <= deal.promotionEnd) : datedDeals;
+      // Never substitute attemptedAt, fetchedAt, collectedAt or the aggregate cache timestamp.
+      // Both the dataset and the conservative source observation must remain within 72 hours.
+      const sourceUpdatedTimestamp = isThirdParty ? validSourceTimestamp(envelope.sourceUpdatedAt, now, 0) : null;
+      const observedTimestamp = isThirdParty ? validSourceTimestamp(envelope.observedAt, now, 0) : null;
+      const lastSuccessfulTimestamp = validSourceTimestamp(
+        envelope.lastSuccessfulAt !== undefined ? envelope.lastSuccessfulAt : envelope.updatedAt,
+        now, isThirdParty ? 0 : SOURCE_CLOCK_SKEW_MS);
+      const sourceTimes = [sourceUpdatedTimestamp, observedTimestamp, lastSuccessfulTimestamp];
+      const sourceTimestamp = isThirdParty
+        ? (sourceTimes.every(timestamp => timestamp !== null) ? Math.min(...sourceTimes) : null)
+        : lastSuccessfulTimestamp;
+      const collectedTimestamp = isThirdParty ? validSourceTimestamp(envelope.collectedAt, now, 0) : null;
+      const invalidThirdPartyTime = isThirdParty && (sourceTimestamp === null || collectedTimestamp === null);
+      const freshnessMs = isThirdParty ? BOOKS_THIRD_PARTY_FRESHNESS_MS : SOURCE_FRESHNESS_MS;
+      const isFresh = !invalidThirdPartyTime && sourceTimestamp !== null && now.getTime() - sourceTimestamp <= freshnessMs;
+      // Each expanded row also needs its own genuine, unexpired source observation.
+      // Never revive an old row just because the dataset timestamp has advanced.
+      const deals = isThirdParty ? validDeals.filter(deal => {
+        const rowTimestamp = validSourceTimestamp(deal.sourceObservedAt, now, 0);
+        return isFresh && deal.date >= today && deal.promotionEnd >= today &&
+          rowTimestamp !== null && now.getTime() - rowTimestamp <= BOOKS_THIRD_PARTY_FRESHNESS_MS;
+      }) : validDeals;
+      const sourceDate = sourceTimestamp === null ? null : taipeiDateKey(new Date(sourceTimestamp));
+      const emptyConfirmedToday = envelope.confirmedEmptyDate === today || sourceDate === today;
+      const hasToday = deals.some(deal => deal.date === today);
+      const hasFuture = deals.some(deal => deal.date > today);
+      const historicalOnly = validDeals.length > 0 && validDeals.every(deal => deal.date < today);
+      let status, message, detail;
+
+      if (isThirdParty && (invalidThirdPartyTime || !isFresh || historicalOnly)) {
+        status = invalidThirdPartyTime ? (envelope.success === true ? 'unconfirmed' : 'unavailable') : 'stale';
+        message = invalidThirdPartyTime ? '來源或取得時間無法確認' : '資料已過期';
+        detail = invalidThirdPartyTime
+          ? '第三方來源或取得時間無效或晚於現在，已隱藏價格卡片；今日資料尚未確認。'
+          : '第三方來源超過 72 小時未更新，或優惠日期已過，已隱藏價格卡片；今日資料尚未確認。';
+      } else if (envelope.success !== true) {
+        status = sourceTimestamp === null ? 'unavailable' : 'failed';
+        message = sourceTimestamp === null ? '暫時無法取得' : '資料更新失敗';
+        detail = sourceTimestamp === null
+          ? '尚無可確認的成功更新時間，今日資料尚未確認。'
+          : isThirdParty
+            ? '保留來源時效內、尚未到期的第三方資料；取得時間未變，價格請以博客來結帳頁為準。'
+            : '保留上次成功取得的資料，可能已過期；今日優惠請以平台頁面為準。';
+      } else if (sourceTimestamp === null) {
+        status = 'unconfirmed';
+        message = '今日資料尚未確認';
+        detail = '資料更新時間無法確認，優惠請以平台頁面為準。';
+      } else if (!isFresh || historicalOnly) {
+        status = 'stale';
+        message = '資料已過期';
+        detail = '今日資料尚未確認，保留資料僅供參考；優惠請以平台頁面為準。';
+      } else if (hasToday) {
+        status = 'available';
+        message = '';
+        detail = '';
+      } else if (!isThirdParty && emptyConfirmedToday && ((rawDeals !== null && rawDeals.length === 0) || envelope.confirmedEmpty === true)) {
+        status = 'empty';
+        message = '今天無特價';
+        detail = '最近一次成功更新已確認今日無特價。';
+      } else {
+        status = 'unconfirmed';
+        message = '今日資料尚未確認';
+        detail = hasFuture ? '先看接下來幾天的好書預告；今日優惠請以平台頁面為準。' : '尚未取得有效的今日資料，請稍後再試。';
+      }
+
+      const error = typeof envelope.error === 'string' ? envelope.error.trim().slice(0, 300) : '';
+      if (envelope.success !== true && error) detail += ' 更新訊息：' + error;
+      return { status, message, detail, today, deals, sourceTimestamp, sourceUpdatedTimestamp, collectedTimestamp, isThirdParty, isFresh, hasToday, hasFuture };
+    }
+
     // === Dark Mode ===
     (function initTheme() {
       const saved = localStorage.getItem('theme');
@@ -1623,20 +1765,31 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         allDealsData = data;
-        if (data.updatedAt) {
-          const d = new Date(data.updatedAt);
-          document.getElementById('updated-at').textContent =
-            '\u6700\u5F8C\u66F4\u65B0\uFF1A' + d.toLocaleDateString('zh-TW') + ' ' +
-            d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-        }
+        document.getElementById('updated-at').textContent = '各平台最後成功更新時間如下（台灣時間）';
         document.getElementById('refresh-btn').style.display = '';
         renderDeals(data);
         renderExhibitions(data);
       } catch (err) {
-        document.getElementById('grid-readmoo').innerHTML =
-          '<div class="status-msg error">\u8F09\u5165\u5931\u6557\uFF1A' + escapeHtml(err.message) + '</div>';
+        // A failed refresh must not erase the last usable cards or leave shimmers
+        // behind on the other four platforms. Preserve actual source timestamps.
+        const failedData = {};
+        for (const platform of ['readmoo', 'books', 'kobo', 'pubu', 'hyread']) {
+          failedData[platform] = { ...allDealsData?.[platform], success: false, error: err.message };
+        }
+        allDealsData = failedData;
+        renderDeals(failedData);
+        document.getElementById('updated-at').textContent = '本次載入失敗，請稍後重新整理';
+        document.getElementById('refresh-btn').style.display = '';
       }
     }
+
+    // Re-check Taiwan date rollover and source expiry while the page stays open.
+    // This never fetches data or changes the last successful collection timestamp.
+    function refreshVisibleDeals() {
+      if (allDealsData && document.visibilityState !== 'hidden') renderDeals(allDealsData);
+    }
+    setInterval(refreshVisibleDeals, 60 * 1000);
+    document.addEventListener('visibilitychange', refreshVisibleDeals);
 
     // === Refresh Button ===
     document.getElementById('refresh-btn').addEventListener('click', async () => {
@@ -1697,13 +1850,11 @@
       }).join('');
     }
 
-    function renderDeals(data) {
-      const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-
+    function renderDeals(data, now = new Date()) {
       const platformNames = { readmoo: 'Readmoo', books: '博客來', kobo: 'Kobo', pubu: 'Pubu', hyread: 'HyRead' };
       for (const platform of ['readmoo', 'books', 'kobo', 'pubu', 'hyread']) {
-        const deals = data[platform]?.deals || [];
+        const state = derivePlatformState(data?.[platform], now);
+        const { deals, today } = state;
         // 只顯示今天 + 未來，日期升冪
         let showDeals = deals
           .filter(d => d.date >= today)
@@ -1721,13 +1872,13 @@
 
         // Pubu 限時 99：一週內到期的才顯示在 UI（一週後的留在訂閱日曆裡，不塞爆畫面）
         if (platform === 'pubu') {
-          const todayMs = Date.parse(today + 'T00:00:00');
+          const todayMs = Date.parse(today + 'T00:00:00+08:00');
           const sevenDaysMs = todayMs + 7 * 86400000;
           showDeals = showDeals.filter(d => {
             // 每日精選照常顯示（短期、不會塞爆）
             if (d.promoMessage !== '限時 99 最後一天') return true;
             // 限時 99：到期日 ≤ 一週內才顯示
-            const dealMs = Date.parse(d.date + 'T00:00:00');
+            const dealMs = Date.parse(d.date + 'T00:00:00+08:00');
             return dealMs <= sevenDaysMs;
           });
         }
@@ -1736,30 +1887,49 @@
         const calHeader = document.getElementById('cal-header-' + platform);
         const columnHeader = grid.closest('.platform-column').querySelector('.column-header');
 
-        // 偵測「有未來資料但今天沒資料」 — 通常是爬蟲還沒跑、資料延遲
-        // HyRead 不適用（它本來就是週末才有，平日沒資料是正常的）
-        const hasToday = showDeals.some(d => d.date === today);
-        const showNoTodayNotice = !hasToday && showDeals.length > 0 && platform !== 'hyread';
+        const updatedLabel = (platform === 'books' && data?.[platform]?.source === 'manual-official' ? '人工核對官方資料 · ' : '') +
+          (state.sourceTimestamp === null
+          ? '最後成功更新：尚無可確認紀錄'
+          : '最後成功更新：' + formatSourceTimestamp(state.sourceTimestamp));
+        const sourceMarkup = state.isThirdParty
+          ? '<span class="platform-source">資料來源：<a href="' + BOOKS_THIRD_PARTY_URL +
+            '" target="_blank" rel="noopener noreferrer">Kobo99（第三方整理）</a>' +
+            '<span class="platform-source-caution">' + BOOKS_THIRD_PARTY_CAUTION + '</span></span>' +
+            '<span class="platform-updated">來源更新：' + escapeHtml(state.sourceUpdatedTimestamp === null
+              ? '無法確認' : formatSourceTimestamp(state.sourceUpdatedTimestamp) + ' · ' + formatSourceAge(state.sourceUpdatedTimestamp, now)) + '</span>' +
+            (state.sourceTimestamp !== null && state.sourceTimestamp !== state.sourceUpdatedTimestamp
+              ? '<span class="platform-updated">最早來源紀錄：' + escapeHtml(formatSourceTimestamp(state.sourceTimestamp) + ' · ' + formatSourceAge(state.sourceTimestamp, now)) + '</span>' : '') +
+            '<span class="platform-updated">最後成功取得：' + escapeHtml(state.collectedTimestamp === null
+              ? '尚無可確認紀錄' : formatSourceTimestamp(state.collectedTimestamp)) + '</span>'
+          : '<span class="platform-updated">' + escapeHtml(updatedLabel) + '</span>';
+        columnHeader.innerHTML = platformNames[platform] +
+          (showDeals.length ? ' <span class="col-count">' + showDeals.length + ' 本</span>' : '') + sourceMarkup;
+        grid.dataset.status = state.status;
 
         // 找/建 notice 元素（放在 calendar-wrap 之前）
         const calWrap = grid.closest('.calendar-wrap');
         const platformCol = grid.closest('.platform-column');
         let noticeEl = platformCol.querySelector('.data-notice');
-        if (showNoTodayNotice) {
+        if (state.message && showDeals.length > 0) {
           if (!noticeEl) {
             noticeEl = document.createElement('div');
             noticeEl.className = 'data-notice';
             calWrap.parentNode.insertBefore(noticeEl, calWrap);
           }
-          noticeEl.textContent = '今日資料更新中（每天 00:15 自動更新），先看接下來幾天的好書 ↓';
+          noticeEl.textContent = state.message + '：' + state.detail;
         } else if (noticeEl) {
           noticeEl.remove();
         }
 
         if (showDeals.length === 0) {
           if (calHeader) calHeader.innerHTML = '';
-          columnHeader.innerHTML = platformNames[platform];
-          grid.innerHTML = '<div class="empty-state"><p>今天無特價</p><p style="font-size:13px;color:var(--text-muted);margin-top:6px;">資料每日 00:15 自動更新</p></div>';
+          if (calHeader) calHeader.style.gridTemplateColumns = '';
+          grid.style.gridTemplateColumns = '1fr';
+          grid.innerHTML = '<div class="empty-state"><p>' + escapeHtml(state.message || '今日資料尚未確認') +
+            '</p><p style="font-size:13px;color:var(--text-muted);margin-top:6px;">' + escapeHtml(state.detail) + '</p>' +
+            (platform === 'books' && state.status !== 'empty'
+              ? '<p><a href="https://www.books.com.tw/web/cebook/?loc=subject_main_001" target="_blank" rel="noopener">前往博客來官方頁面確認</a></p>'
+              : '') + '</div>';
         } else if (platform === 'hyread') {
           // HyRead 特例：本週末同一批書（不分日，只顯示一個「本週末」標頭）
           const dates = [...new Set(showDeals.map(d => d.date))].sort();
@@ -1772,22 +1942,20 @@
           const rangeLabel = startDate === endDate
             ? fmtDate(startDate)
             : fmtDate(startDate) + '–' + fmtDate(endDate);
-          columnHeader.innerHTML = platformNames[platform] + ' <span class="col-count">' + showDeals.length + ' 本</span>';
           if (calHeader) {
             calHeader.style.gridTemplateColumns = '1fr';
             calHeader.innerHTML = '<span>本週末快閃<br>' + rangeLabel + '<br>' + showDeals.length + ' 本</span>';
           }
           grid.style.gridTemplateColumns = `repeat(${showDeals.length}, 1fr)`;
-          grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today)).join('');
+          grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)).join('');
         } else {
-          columnHeader.innerHTML = platformNames[platform] + ' <span class="col-count">' + showDeals.length + ' 本</span>';
           renderCalendarHeader(showDeals, today, 'cal-header-' + platform, 'grid-' + platform);
-          grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today)).join('');
+          grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)).join('');
         }
       }
     }
 
-    function renderDealCard(deal, today) {
+    function renderDealCard(deal, today, sourceEnvelope = {}, now = new Date()) {
       const p = deal.platform || '';
       const isToday = deal.date === today;
       const isPast = deal.date < today;
@@ -1800,7 +1968,7 @@
         ? '<img src="' + escapeHtml(deal.coverUrl) + '" alt="' + escapeHtml(displayTitle) + '" loading="lazy" onerror="this.outerHTML=\'<div class=book-cover-placeholder>' + escapeHtml(placeholderText) + '</div>\'">'
         : '<div class="book-cover-placeholder">' + escapeHtml(placeholderText) + '</div>';
 
-      const gcalUrl = isPast ? '' : buildGCalUrl(deal);
+      const gcalUrl = isPast ? '' : buildGCalUrl(deal, sourceEnvelope, now);
       const appleUrl = isPast ? '' : buildAppleIcsUrl(deal);
       const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>';
       const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="cal-chevron"><polyline points="6 9 12 15 18 9"/></svg>';
@@ -1874,7 +2042,7 @@
     }
 
     // === Google Calendar URL Builder ===
-    function buildGCalUrl(deal) {
+    function buildGCalUrl(deal, sourceEnvelope = {}, now = new Date()) {
       const dateStr = deal.date.replace(/-/g, '');
       const next = new Date(deal.date + 'T00:00:00');
       next.setDate(next.getDate() + 1);
@@ -1888,6 +2056,30 @@
       if (deal.author) lines.push('作者：' + deal.author);
       if (deal.originalPrice > 0) lines.push('原價 $' + deal.originalPrice + ' 特價 $' + deal.dealPrice);
       if (deal.bookUrl) lines.push('購買：' + deal.bookUrl);
+      if (deal.platform === 'books' && sourceEnvelope?.source === BOOKS_THIRD_PARTY_SOURCE) {
+        const datasetTime = validSourceTimestamp(sourceEnvelope.sourceUpdatedAt, now, 0);
+        const collectedTime = validSourceTimestamp(sourceEnvelope.collectedAt, now, 0);
+        const rowTime = validSourceTimestamp(deal.sourceObservedAt, now, 0);
+        const observationTimes = [datasetTime, rowTime,
+          validSourceTimestamp(sourceEnvelope.observedAt, now, 0),
+          validSourceTimestamp(sourceEnvelope.lastSuccessfulAt, now, 0)];
+        const showTime = timestamp => timestamp === null ? '無法確認' : formatSourceTimestamp(timestamp);
+        lines.push('');
+        lines.push('資料來源：Kobo99（第三方整理）');
+        lines.push('來源網址：' + BOOKS_THIRD_PARTY_URL);
+        lines.push('來源更新：' + showTime(datasetTime));
+        lines.push('本書來源紀錄：' + showTime(rowTime));
+        lines.push('最後成功取得：' + showTime(collectedTime));
+        if (isDealDate(deal.promotionStart) && isDealDate(deal.promotionEnd)) {
+          lines.push('優惠期間：' + deal.promotionStart + ' 至 ' + deal.promotionEnd + '（台灣時間，含起訖日；到期日 23:59:59 結束）');
+        }
+        if (observationTimes.every(timestamp => timestamp !== null)) {
+          lines.push('資料時效上限：' + formatSourceTimestamp(Math.min(...observationTimes) + BOOKS_THIRD_PARTY_FRESHNESS_MS));
+        }
+        lines.push('本頁在優惠到期或來源／本書紀錄超過 72 小時後隱藏卡片。');
+        lines.push(BOOKS_THIRD_PARTY_CAUTION);
+        lines.push('此為單次加入的日曆副本，不會自動更新或刪除；到期或價格變更請自行確認。');
+      }
       lines.push('');
       lines.push('—— HelloRuru 電子書每日特價 https://tools.helloruru.com/ebook-deals/');
       const params = new URLSearchParams({
@@ -2176,8 +2368,7 @@
     // 自動帶當天日期參數，避開 Google Calendar server-side 訂閱快取
     // 同一個使用者今天訂的 URL 跟昨天訂的不同 → Google 視為全新訂閱，不會用舊快取
     function todayParam() {
-      const d = new Date();
-      return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+      return taipeiDateKey().replace(/-/g, '');
     }
     function feedUrl(platform) {
       const v = todayParam();
