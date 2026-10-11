@@ -1733,7 +1733,7 @@
 
       const error = typeof envelope.error === 'string' ? envelope.error.trim().slice(0, 300) : '';
       if (!isThirdParty && envelope.status === 'stale') { status = 'stale'; message = '資料已過期'; detail = '來源超過 48 小時未更新或優惠已到期，已隱藏價格卡片；今日資料尚未確認。'; }
-      if (envelope.errorKind === 'restricted') { message = '官方來源限制存取'; detail = '官方來源要求網站驗證，未嘗試繞過；今日資料尚未確認。'; }
+      if (envelope.errorKind === 'restricted') { message = '官方來源限制存取'; detail = isFresh ? '目前無法取得最新資料；保留時效內舊書單，請依最後成功更新時間與官方結帳價確認。' : '目前無法取得最新資料；尚無時效內可確認的優惠價格。'; }
       if (envelope.success !== true && error) detail += ' 更新訊息：' + error;
       return { status, message, detail, today, deals, sourceTimestamp, sourceUpdatedTimestamp, collectedTimestamp, isThirdParty, isFresh, hasToday, hasFuture };
     }
@@ -2394,7 +2394,7 @@
       },
       {
         title: 'Readmoo 讀墨',
-        desc: '每日特價 99 元起，深度好書多',
+        desc: '每日特惠書，價格依官方活動標示',
         get url() { return feedUrl('readmoo'); },
       },
       {
@@ -2409,12 +2409,12 @@
       },
       {
         title: 'Pubu',
-        desc: '每日精選 + 限時 $99 即將下架提醒',
+        desc: '每日精選 + 限時優惠到期提醒',
         get url() { return feedUrl('pubu'); },
       },
       {
         title: 'HyRead',
-        desc: '週末快閃 99（每週五～日同一批書）',
+        desc: '週末快閃 99（以官方公告期間為準）',
         get url() { return feedUrl('hyread'); },
       },
     ];
