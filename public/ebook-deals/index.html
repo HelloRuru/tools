@@ -1614,6 +1614,11 @@
     // === Source Freshness (pure helpers; also tested without a browser) ===
     const SOURCE_FRESHNESS_MS = 48 * 60 * 60 * 1000;
     const SOURCE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+    const KOBO_WEEKLY_SOURCE = 'kobo99-weekly-third-party';
+    const KOBO_WEEKLY_MAX_AGE = 8 * 86400000;
+    const KOBO_WEEKLY_LINK = 'https://github.com/kobo99tw/kobo99-tracker/blob/main/docs/data/latest.json';
+    const KOBO_WEEKLY_CALENDAR_LINK = 'https://github.com/kobo99tw/kobo99-tracker/blob/main/docs/calendar.ics';
+    const KOBO_WEEKLY_CAUTION = '第三方每週公告促銷價，非即時結帳查價；僅限標示當日，以 Kobo 結帳頁為準';
     const BOOKS_THIRD_PARTY_SOURCE = 'kobo99-third-party';
     const BOOKS_THIRD_PARTY_FRESHNESS_MS = 72 * 60 * 60 * 1000;
     // Only this reviewed source is linked. Never interpolate sourceUrl from an API response.
@@ -1657,8 +1662,32 @@
       return '距今 ' + Math.floor(minutes / 60) + ' 小時 ' + (minutes % 60) + ' 分鐘';
     }
 
+    function deriveWeeklyKoboState(envelope, now) {
+      const today = taipeiDateKey(now);
+      const sourceUpdatedTimestamp = validSourceTimestamp(envelope.sourceUpdatedAt, now, 0);
+      const calendarTimestamp = validSourceTimestamp(envelope.calendarPublishedAt, now, 0);
+      const observedTimestamp = validSourceTimestamp(envelope.observedAt, now, 0);
+      const successfulTimestamp = validSourceTimestamp(envelope.lastSuccessfulAt || envelope.updatedAt, now, 0);
+      const collectedTimestamp = validSourceTimestamp(envelope.collectedAt, now, 0);
+      const times = [sourceUpdatedTimestamp, calendarTimestamp, observedTimestamp, successfulTimestamp];
+      const sourceTimestamp = times.every(t => t !== null) ? Math.min(...times) : null;
+      const isFresh = sourceTimestamp !== null && now.getTime() - sourceTimestamp <= KOBO_WEEKLY_MAX_AGE && collectedTimestamp !== null && collectedTimestamp >= Math.max(sourceUpdatedTimestamp, calendarTimestamp);
+      const deals = isFresh && Array.isArray(envelope.deals) ? envelope.deals.filter(d => {
+        const row = validSourceTimestamp(d.sourceObservedAt, now, 0);
+        return isDealDate(d.date) && d.date >= today && d.promotionStart === d.date && d.promotionEnd === d.date && d.dealPrice === 99 &&
+          /^https:\/\/www\.kobo\.com\/tw\/zh\/ebook\/[^/?#]+$/.test(d.bookUrl || '') && row !== null && now.getTime() - row <= KOBO_WEEKLY_MAX_AGE &&
+          Date.parse(d.date + 'T00:00:00+08:00') <= sourceTimestamp + KOBO_WEEKLY_MAX_AGE;
+      }) : [];
+      const hasToday = deals.some(d => d.date === today), hasFuture = deals.some(d => d.date > today);
+      const status = !deals.length ? 'stale' : envelope.success !== true ? 'failed' : hasToday ? 'available' : 'unconfirmed';
+      const message = status === 'stale' ? '週報或單日優惠已過期' : status === 'failed' ? '第三方資料更新失敗' : status === 'unconfirmed' ? '今日資料尚未確認' : '';
+      let detail = status === 'stale' ? '每週來源最多保留8天，每本優惠僅限標示當日；已隱藏無效價格。' : status === 'failed' ? '保留時效內的上次公告，來源與取得時間未刷新；請至 Kobo 核價。' : status === 'unconfirmed' ? '目前只有未來預告，不能當作今日價格。' : '';
+      if (envelope.success !== true && typeof envelope.error === 'string') detail += ' 更新訊息：' + envelope.error.slice(0,300);
+      return {status,message,detail,today,deals,sourceTimestamp,sourceUpdatedTimestamp,calendarTimestamp,collectedTimestamp,isFresh,hasToday,hasFuture,isThirdParty:false,isWeekly:true};
+    }
     function derivePlatformState(envelope = {}, now = new Date()) {
       envelope = envelope && typeof envelope === 'object' ? envelope : {};
+      if (envelope.source === KOBO_WEEKLY_SOURCE) return deriveWeeklyKoboState(envelope, now);
       const today = taipeiDateKey(now);
       const rawDeals = Array.isArray(envelope.deals) ? envelope.deals : null;
       const isThirdParty = envelope.source === BOOKS_THIRD_PARTY_SOURCE;
@@ -1893,7 +1922,12 @@
           (state.sourceTimestamp === null
           ? '最後成功更新：尚無可確認紀錄'
           : '最後成功更新：' + formatSourceTimestamp(state.sourceTimestamp));
-        const sourceMarkup = state.isThirdParty
+        const sourceMarkup = state.isWeekly
+          ? '<span class="platform-source">資料來源：<a href="' + KOBO_WEEKLY_LINK + '" target="_blank" rel="noopener noreferrer">Kobo99 每週書單（第三方）</a> · <a href="' + KOBO_WEEKLY_CALENDAR_LINK + '" target="_blank" rel="noopener noreferrer">單日日曆</a><span class="platform-source-caution">' + KOBO_WEEKLY_CAUTION + '</span></span>' +
+            '<span class="platform-updated">來源發布：' + escapeHtml(state.sourceUpdatedTimestamp === null ? '無法確認' : formatSourceTimestamp(state.sourceUpdatedTimestamp)) + '</span>' +
+            '<span class="platform-updated">日曆版本：' + escapeHtml(state.calendarTimestamp === null ? '無法確認' : formatSourceTimestamp(state.calendarTimestamp)) + '</span>' +
+            '<span class="platform-updated">最後成功取得：' + escapeHtml(state.collectedTimestamp === null ? '無法確認' : formatSourceTimestamp(state.collectedTimestamp)) + '</span>'
+          : state.isThirdParty
           ? '<span class="platform-source">資料來源：<a href="' + BOOKS_THIRD_PARTY_URL +
             '" target="_blank" rel="noopener noreferrer">Kobo99（第三方整理）</a>' +
             '<span class="platform-source-caution">' + BOOKS_THIRD_PARTY_CAUTION + '</span></span>' +
@@ -1996,7 +2030,7 @@
       if (!promoLabel) {
         if (deal.platform === 'readmoo') promoLabel = '每日特惠';
         else if (deal.platform === 'books') promoLabel = deal.dealType || '每日限時搶';
-        else if (deal.platform === 'kobo') promoLabel = '每週 99 選書';
+        else if (deal.platform === 'kobo') promoLabel = sourceEnvelope.source === KOBO_WEEKLY_SOURCE ? '第三方單日公告 ' : '每週 99 選書';
       }
       // Pubu「限時 99 最後一天」→ 直接帶日期：「5/4 到期 $99」
       if (deal.platform === 'pubu' && (deal.reminderType === 'last-day' || promoLabel === '限時 99 最後一天') && deal.date) {
@@ -2058,12 +2092,19 @@
       if (deal.author) lines.push('作者：' + deal.author);
       if (deal.originalPrice > 0) lines.push('原價 $' + deal.originalPrice + ' 特價 $' + deal.dealPrice);
       if (deal.bookUrl) lines.push('購買：' + deal.bookUrl);
-      if (deal.platform !== 'books') {
+      if (deal.platform !== 'books' && sourceEnvelope.source !== KOBO_WEEKLY_SOURCE) {
         const timestamp = validSourceTimestamp(sourceEnvelope.lastSuccessfulAt || sourceEnvelope.updatedAt, now);
         if (timestamp !== null) lines.push('最後成功取得：' + formatSourceTimestamp(timestamp));
         if (deal.promotionEnd || deal.eventEndDate) lines.push('優惠截止（台灣日期）：' + (deal.promotionEnd || deal.eventEndDate));
         if (sourceEnvelope.success !== true) lines.push('本次更新失敗，保留時效內舊資料；請至官方再次核價。');
         lines.push('價格以官方結帳頁為準；單次加入日曆不會自動更新或移除。');
+      }
+      if (sourceEnvelope.source === KOBO_WEEKLY_SOURCE) {
+        lines.push('資料來源：Kobo99 每週書單（第三方）', KOBO_WEEKLY_LINK, KOBO_WEEKLY_CALENDAR_LINK);
+        for (const [label, value] of [['來源發布',sourceEnvelope.sourceUpdatedAt],['日曆版本',sourceEnvelope.calendarPublishedAt],['最後成功取得',sourceEnvelope.collectedAt]]) {
+          const time = validSourceTimestamp(value, now, 0); lines.push(label + '：' + (time === null ? '未確認' : formatSourceTimestamp(time)));
+        }
+        lines.push('單日促銷日期（台灣）：' + deal.date, KOBO_WEEKLY_CAUTION, '週報最多保留8天；單次匯入日曆不會自動更新或移除。');
       }
       if (deal.platform === 'books' && sourceEnvelope?.source === BOOKS_THIRD_PARTY_SOURCE) {
         const datasetTime = validSourceTimestamp(sourceEnvelope.sourceUpdatedAt, now, 0);
