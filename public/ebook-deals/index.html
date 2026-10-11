@@ -1687,7 +1687,7 @@
         const rowTimestamp = validSourceTimestamp(deal.sourceObservedAt, now, 0);
         return isFresh && deal.date >= today && deal.promotionEnd >= today &&
           rowTimestamp !== null && now.getTime() - rowTimestamp <= BOOKS_THIRD_PARTY_FRESHNESS_MS;
-      }) : validDeals;
+      }) : validDeals.filter(deal => isFresh && deal.date >= today && Number.isFinite(deal.dealPrice) && deal.dealPrice >= 0 && (!deal.promotionEnd || (isDealDate(deal.promotionEnd) && deal.promotionEnd >= deal.date)) && (!deal.promotionStart || (isDealDate(deal.promotionStart) && deal.promotionStart <= deal.date)));
       const sourceDate = sourceTimestamp === null ? null : taipeiDateKey(new Date(sourceTimestamp));
       const emptyConfirmedToday = envelope.confirmedEmptyDate === today || sourceDate === today;
       const hasToday = deals.some(deal => deal.date === today);
@@ -1716,7 +1716,7 @@
       } else if (!isFresh || historicalOnly) {
         status = 'stale';
         message = '資料已過期';
-        detail = '今日資料尚未確認，保留資料僅供參考；優惠請以平台頁面為準。';
+        detail = '來源超過 48 小時未更新或優惠已到期，已隱藏價格卡片；今日資料尚未確認，請以平台頁面為準。';
       } else if (hasToday) {
         status = 'available';
         message = '';
@@ -1732,6 +1732,8 @@
       }
 
       const error = typeof envelope.error === 'string' ? envelope.error.trim().slice(0, 300) : '';
+      if (!isThirdParty && envelope.status === 'stale') { status = 'stale'; message = '資料已過期'; detail = '來源超過 48 小時未更新或優惠已到期，已隱藏價格卡片；今日資料尚未確認。'; }
+      if (envelope.errorKind === 'restricted') { message = '官方來源限制存取'; detail = '官方來源要求網站驗證，未嘗試繞過；今日資料尚未確認。'; }
       if (envelope.success !== true && error) detail += ' 更新訊息：' + error;
       return { status, message, detail, today, deals, sourceTimestamp, sourceUpdatedTimestamp, collectedTimestamp, isThirdParty, isFresh, hasToday, hasFuture };
     }
@@ -1876,7 +1878,7 @@
           const sevenDaysMs = todayMs + 7 * 86400000;
           showDeals = showDeals.filter(d => {
             // 每日精選照常顯示（短期、不會塞爆）
-            if (d.promoMessage !== '限時 99 最後一天') return true;
+            if (d.reminderType !== 'last-day' && d.promoMessage !== '限時 99 最後一天') return true;
             // 限時 99：到期日 ≤ 一週內才顯示
             const dealMs = Date.parse(d.date + 'T00:00:00+08:00');
             return dealMs <= sevenDaysMs;
@@ -1944,7 +1946,7 @@
             : fmtDate(startDate) + '–' + fmtDate(endDate);
           if (calHeader) {
             calHeader.style.gridTemplateColumns = '1fr';
-            calHeader.innerHTML = '<span>本週末快閃<br>' + rangeLabel + '<br>' + showDeals.length + ' 本</span>';
+            calHeader.innerHTML = '<span>活動期間<br>' + rangeLabel + '<br>' + showDeals.length + ' 本</span>';
           }
           grid.style.gridTemplateColumns = `repeat(${showDeals.length}, 1fr)`;
           grid.innerHTML = showDeals.map(deal => renderDealCard(deal, today, data?.[platform], now)).join('');
@@ -1992,14 +1994,14 @@
       // - Kobo: 用 dealType（每日99）
       let promoLabel = deal.promoMessage || '';
       if (!promoLabel) {
-        if (deal.platform === 'readmoo') promoLabel = '每日 99';
+        if (deal.platform === 'readmoo') promoLabel = '每日特惠';
         else if (deal.platform === 'books') promoLabel = deal.dealType || '每日限時搶';
         else if (deal.platform === 'kobo') promoLabel = '每週 99 選書';
       }
       // Pubu「限時 99 最後一天」→ 直接帶日期：「5/4 到期 $99」
-      if (deal.platform === 'pubu' && promoLabel === '限時 99 最後一天' && deal.date) {
+      if (deal.platform === 'pubu' && (deal.reminderType === 'last-day' || promoLabel === '限時 99 最後一天') && deal.date) {
         const dt = new Date(deal.date + 'T00:00:00');
-        promoLabel = (dt.getMonth() + 1) + '/' + dt.getDate() + ' 到期 $99';
+        promoLabel = (dt.getMonth() + 1) + '/' + dt.getDate() + ' 到期 $' + deal.dealPrice;
       }
 
       let promoTag = '';
@@ -2056,6 +2058,13 @@
       if (deal.author) lines.push('作者：' + deal.author);
       if (deal.originalPrice > 0) lines.push('原價 $' + deal.originalPrice + ' 特價 $' + deal.dealPrice);
       if (deal.bookUrl) lines.push('購買：' + deal.bookUrl);
+      if (deal.platform !== 'books') {
+        const timestamp = validSourceTimestamp(sourceEnvelope.lastSuccessfulAt || sourceEnvelope.updatedAt, now);
+        if (timestamp !== null) lines.push('最後成功取得：' + formatSourceTimestamp(timestamp));
+        if (deal.promotionEnd || deal.eventEndDate) lines.push('優惠截止（台灣日期）：' + (deal.promotionEnd || deal.eventEndDate));
+        if (sourceEnvelope.success !== true) lines.push('本次更新失敗，保留時效內舊資料；請至官方再次核價。');
+        lines.push('價格以官方結帳頁為準；單次加入日曆不會自動更新或移除。');
+      }
       if (deal.platform === 'books' && sourceEnvelope?.source === BOOKS_THIRD_PARTY_SOURCE) {
         const datasetTime = validSourceTimestamp(sourceEnvelope.sourceUpdatedAt, now, 0);
         const collectedTime = validSourceTimestamp(sourceEnvelope.collectedAt, now, 0);
